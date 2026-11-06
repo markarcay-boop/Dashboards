@@ -1,0 +1,1166 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#11141d">
+<title>RAMsys Eye · Aeros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   Aeros palette
+   Oxygen Blue #3B72ED · Warm Ether #F18D74 · Midnight Carbon #2E3247 · Dusty Stratos #4F5B8A
+   ========================================================================== */
+:root{
+  --blue:#3B72ED; --blue-hi:#5D8BFF; --blue-soft:rgba(59,114,237,.18);
+  --ether:#F18D74; --ether-soft:rgba(241,141,116,.18);
+  --carbon:#2E3247; --stratos:#4F5B8A;
+  --page:#11141D; --panel:#171B28; --card:#1D2233; --card-hi:#232942;
+  --line:rgba(255,255,255,.06); --line2:rgba(255,255,255,.11);
+  --ink:#F3F5FB; --ink2:#B7BED8; --muted:#7A84A8; --faint:#4A5272;
+  --f:'Outfit',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --r:24px; --spring:cubic-bezier(.34,1.4,.5,1); --out:cubic-bezier(.2,.7,.2,1);
+  --hatch:repeating-linear-gradient(135deg,rgba(93,139,255,.42) 0 1.5px,transparent 1.5px 6px);
+  --hatch-e:repeating-linear-gradient(135deg,rgba(241,141,116,.5) 0 1.5px,transparent 1.5px 6px);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--page);color:var(--ink);font-family:var(--f);-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--blue-hi);outline-offset:2px}
+svg{display:block}
+.ico{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.tab{font-variant-numeric:tabular-nums}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- app frame ---------- */
+.app{display:grid;grid-template-columns:minmax(320px,31%) 1fr;height:100vh;height:100dvh;padding:14px}
+.stage{position:relative;border-radius:30px;overflow:hidden;isolation:isolate;background:#1b2238}
+.stage .layer{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transform:scale(1.08);
+  transition:opacity .9s var(--out),transform 6s var(--out)}
+.stage .layer.on{opacity:1;transform:scale(1)}
+.stage .layer video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.stage .dots{position:absolute;inset:0;z-index:1;pointer-events:none;opacity:.35;
+  background-image:radial-gradient(rgba(255,255,255,.35) 1px,transparent 1.4px);background-size:22px 22px;
+  -webkit-mask-image:linear-gradient(180deg,transparent 35%,#000 100%);mask-image:linear-gradient(180deg,transparent 35%,#000 100%)}
+.stage .shade{position:absolute;inset:0;z-index:2;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,12,20,calc(.35 + var(--dim,.25))) 0%,rgba(10,12,20,0) 34%,rgba(10,12,20,0) 58%,rgba(10,12,20,calc(.45 + var(--dim,.25))) 100%),rgba(10,12,20,var(--dim,.25))}
+.stage-top{position:absolute;z-index:3;top:22px;left:24px;right:64px;display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;border:0;background:none;padding:0;color:#fff}
+.brand img{height:22px;display:block}
+.gdr{height:34px;border-radius:9px;background:#fff;padding:2px 8px;margin-left:auto;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.circ{width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:rgba(255,255,255,.08);display:grid;place-items:center;flex:none;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:background .2s,transform .2s,border-color .2s;position:relative;overflow:hidden}
+.circ:hover{background:rgba(255,255,255,.16)}
+.circ:active{transform:scale(.92)}
+.stage-title{position:absolute;z-index:3;left:28px;right:64px;top:118px}
+.stage-title h1{margin:0;font-weight:300;font-size:clamp(40px,4.4vw,64px);line-height:1.02;letter-spacing:-.02em;text-shadow:0 4px 30px rgba(0,0,0,.35)}
+.stage-title h1 .ch{display:inline-block;white-space:pre;animation:chIn .7s var(--out) both;animation-delay:calc(var(--i) * 28ms)}
+@keyframes chIn{from{opacity:0;transform:translateY(.45em) rotate(4deg);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+.stage-title p{display:flex;align-items:center;gap:8px;margin:14px 0 0;font-size:14px;color:rgba(255,255,255,.82);animation:fadeUp .6s .25s var(--out) both}
+.stage-title p .ico{width:16px;height:16px}
+.stage-stats{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;animation:fadeUp .6s .35s var(--out) both}
+.sst{padding:10px 14px;border-radius:16px;background:rgba(15,18,30,.38);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.sst b{display:block;font-size:20px;font-weight:400}.sst small{font-size:12px;color:rgba(255,255,255,.7)}
+.sst.w b{color:var(--ether)}
+.chips{position:absolute;z-index:3;left:18px;right:52px;bottom:18px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:4px}
+.chips::-webkit-scrollbar{display:none}
+.chip-row{position:relative;display:flex;gap:8px;flex:none}
+.chip{position:relative;z-index:1;flex:none;min-height:44px;padding:0 18px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(15,18,30,.42);color:#fff;font-size:14px;white-space:nowrap;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:color .35s,background .2s,border-color .3s}
+.chip:hover{background:rgba(255,255,255,.14)}
+.chip[aria-pressed="true"]{color:#141826;border-color:transparent;background:transparent}
+.chip .dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:8px;vertical-align:1px;background:var(--ether)}
+.chip-ind{position:absolute;z-index:0;top:0;left:0;height:44px;border-radius:999px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.25);
+  transition:transform .55s var(--spring),width .55s var(--spring)}
+.chip.add{width:44px;padding:0;display:grid;place-items:center}
+
+/* ---------- main panel ---------- */
+.panel{position:relative;z-index:2;margin-left:-44px;border-radius:32px;background:linear-gradient(180deg,#191E2D,#151926);border:1px solid var(--line);
+  box-shadow:-30px 0 60px rgba(0,0,0,.35);display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.ptop{display:flex;align-items:center;gap:14px;padding:18px 22px 0 26px}
+.ptop .circ{background:rgba(255,255,255,.04);width:42px;height:42px}
+.tabs{position:relative;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;min-width:0}
+.tabs::-webkit-scrollbar{display:none}
+.tb{flex:none;position:relative;z-index:1;border:0;background:none;padding:10px 16px;border-radius:999px;font-size:14px;color:var(--muted);white-space:nowrap;transition:color .3s}
+.tb:hover{color:var(--ink2)}
+.tb[aria-selected="true"]{color:var(--ink)}
+.tab-ind{position:absolute;z-index:0;top:0;left:0;height:100%;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line2);
+  transition:transform .55s var(--spring),width .55s var(--spring)}
+.tab-ind::after{content:"";position:absolute;left:50%;bottom:-7px;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--blue-hi);box-shadow:0 0 10px var(--blue-hi)}
+.ptop .sp{flex:1}
+.when{font-size:13px;color:var(--muted);white-space:nowrap}
+.when b{color:var(--ink2);font-weight:400}
+.badge{position:absolute;top:6px;right:6px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--ether);color:#1b1410;font-size:10px;font-weight:600;display:grid;place-items:center}
+.me{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex:none}
+.phead{display:flex;align-items:center;gap:14px;padding:20px 22px 6px 26px;flex-wrap:wrap}
+.ptitle{position:relative;overflow:hidden;height:52px;flex:1;min-width:200px}
+.ptitle h2{position:absolute;inset:0;margin:0;font-weight:300;font-size:40px;line-height:52px;letter-spacing:-.015em;white-space:nowrap;transition:transform .55s var(--out),opacity .4s}
+.ptitle h2.out{transform:translateY(-110%);opacity:0}
+.ptitle h2.pre{transform:translateY(110%);opacity:0}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:8px;min-height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--line2);background:rgba(255,255,255,.04);font-size:14px;color:var(--ink);white-space:nowrap;position:relative;overflow:hidden;transition:background .2s,border-color .2s}
+button.pill:hover{background:rgba(255,255,255,.09)}
+.pill .ico{width:17px;height:17px}
+.pill.primary{background:var(--blue);border-color:transparent;color:#fff;box-shadow:0 10px 26px rgba(59,114,237,.38)}
+.pill.primary:hover{background:var(--blue-hi)}
+.view{flex:1;overflow:auto;padding:12px 22px 24px 26px;scrollbar-width:thin;scrollbar-color:var(--carbon) transparent}
+.view.leaving>*{animation:leave .22s ease-in forwards}
+.view.leaving.r>*{animation-name:leaveR}
+@keyframes leave{to{opacity:0;transform:translateX(-26px)}}
+@keyframes leaveR{to{opacity:0;transform:translateX(26px)}}
+.rise{animation:rise .7s var(--out) both;animation-delay:calc(var(--i,0) * 70ms)}
+.rise.fromR{animation-name:riseR}.rise.fromL{animation-name:riseL}
+@keyframes rise{from{opacity:0;transform:translateY(22px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes riseR{from{opacity:0;transform:translateX(40px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes riseL{from{opacity:0;transform:translateX(-40px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.foot{font-size:12px;color:var(--faint);margin:18px 2px 0}
+
+/* ---------- cards ---------- */
+.card{position:relative;border-radius:var(--r);background:linear-gradient(180deg,var(--card-hi),var(--card) 60%);border:1px solid var(--line);padding:20px 22px;min-width:0;overflow:hidden;
+  transition:border-color .25s,transform .35s var(--out),box-shadow .35s}
+.card.click{cursor:pointer}
+.card.click:hover{border-color:rgba(93,139,255,.35);transform:translateY(-3px);box-shadow:0 18px 40px rgba(0,0,0,.28)}
+.ch{display:flex;align-items:flex-start;gap:10px}
+.ch .t{flex:1;min-width:0}
+.ch h3{margin:0;font-weight:400;font-size:18px}
+.ch .s{display:block;font-size:13px;color:var(--muted);margin-top:2px}
+.ch .s.w{color:var(--ether)}.ch .s.b{color:var(--blue-hi)}
+.ib{width:38px;height:38px;border-radius:50%;border:1px solid var(--line2);background:transparent;display:grid;place-items:center;color:var(--ink2);flex:none;position:relative;overflow:hidden;transition:background .2s,color .2s,transform .2s}
+.ib:hover{background:rgba(255,255,255,.07);color:var(--ink)}
+.ib:active{transform:scale(.9)}
+.ib .ico{width:17px;height:17px}
+.val{display:flex;align-items:center;gap:12px;margin-top:18px}
+.disc{width:38px;height:38px;border-radius:50%;background:var(--blue-soft);color:var(--blue-hi);display:grid;place-items:center;flex:none}
+.disc.w{background:var(--ether-soft);color:var(--ether)}
+.disc .ico{width:18px;height:18px}
+.num{font-size:38px;font-weight:300;letter-spacing:-.02em;line-height:1}
+.num sup{font-size:14px;color:var(--ink2);vertical-align:top;margin-left:3px;position:relative;top:4px}
+.num small{font-size:16px;color:var(--ink2);margin-left:4px}
+.huge{font-size:clamp(84px,9vw,128px);font-weight:200;line-height:.9;letter-spacing:-.05em}
+.huge sup{font-size:24px;font-weight:300;vertical-align:top;position:relative;top:14px;margin-left:6px;letter-spacing:0;color:var(--ink2)}
+.muted{color:var(--muted)}
+
+/* overview grid */
+.ov{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto;gap:14px}
+.ov .big{grid-row:span 2;display:flex;flex-direction:column}
+.big .row2{display:flex;align-items:flex-end;gap:16px;margin-top:22px}
+.big .upd{font-size:13px;color:var(--muted);line-height:1.4}
+.big .acts{display:flex;justify-content:space-between;gap:10px;margin-top:18px;flex-wrap:wrap}
+.big .chart svg{max-height:240px;margin:0 auto}
+.big .ai{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+.big .ai b{display:block;font-weight:400;font-size:14px}.big .ai small{font-size:13px;color:var(--muted)}
+
+/* charts */
+.chart{margin-top:14px}
+.chart svg{width:100%;height:auto;overflow:visible}
+.axl{fill:var(--faint);font-size:11px;font-family:var(--f)}
+.draw{stroke-dasharray:1;stroke-dashoffset:1;animation:draw 1.6s var(--out) forwards;animation-delay:.15s}
+@keyframes draw{to{stroke-dashoffset:0}}
+.fadein{opacity:0;animation:fi .9s .5s var(--out) forwards}
+@keyframes fi{to{opacity:1}}
+.grow{transform-box:fill-box;transform-origin:50% 100%;animation:growY .8s var(--out) both}
+@keyframes growY{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.pop{transform-box:fill-box;transform-origin:center;animation:pop .5s var(--spring) both}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.hb{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:10px;align-items:end;height:128px;margin-top:22px;padding-top:24px}
+.hbc{display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end;position:relative}
+.hbb{width:100%;max-width:34px;border-radius:7px 7px 3px 3px;background:var(--hatch);border:1px solid rgba(93,139,255,.25);height:var(--h);transform-origin:bottom;animation:growY .9s var(--out) both;animation-delay:calc(var(--i) * 60ms + .1s)}
+.hbc.on .hbb{background:var(--hatch),linear-gradient(180deg,rgba(93,139,255,.45),rgba(59,114,237,.1));border-color:rgba(93,139,255,.7)}
+.hbc small{font-size:11px;color:var(--faint)}
+.hbc .tag{white-space:nowrap;position:absolute;top:calc(100% - var(--h) - 52px);padding:3px 8px;border-radius:8px;background:var(--blue);color:#fff;font-size:11px;box-shadow:0 6px 16px rgba(59,114,237,.45);animation:pop .5s .7s var(--spring) both}
+
+/* alarm composition */
+.comp{display:grid;grid-template-columns:minmax(0,1fr) 250px;gap:14px}
+.comp-main{padding:20px 22px 18px}
+.comp-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.comp-top .mid{flex:1;text-align:center;font-size:13px;color:var(--muted)}
+.cols{position:relative;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:12px;height:330px;margin-top:20px;padding-bottom:4px}
+.avg{position:absolute;left:0;right:0;border-top:1px dashed rgba(255,255,255,.14);z-index:0;transition:bottom .6s var(--out)}
+.avg span{position:absolute;left:0;top:-18px;font-size:11px;color:var(--faint)}
+.col{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;min-width:0;cursor:pointer}
+.col h4{margin:0;font-size:15px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.col .st{font-size:12px;color:var(--muted);margin-top:2px}
+.col .st.w{color:var(--ether)}
+.col .stem{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;width:100%;margin-top:12px}
+.col .vp{padding:4px 10px;border-radius:9px;background:var(--blue);color:#fff;font-size:13px;box-shadow:0 6px 18px rgba(59,114,237,.4);animation:pop .5s var(--spring) both;animation-delay:calc(var(--i) * 70ms + .45s);white-space:nowrap}
+.col.w .vp{background:var(--ether);color:#2a1610;box-shadow:0 6px 18px rgba(241,141,116,.4)}
+.col .ln{width:1.5px;flex:1;min-height:14px;background:linear-gradient(180deg,var(--blue-hi),rgba(93,139,255,.25));transform-origin:top;animation:growTop .7s var(--out) both;animation-delay:calc(var(--i) * 70ms + .3s)}
+.col.w .ln{background:linear-gradient(180deg,var(--ether),rgba(241,141,116,.25))}
+@keyframes growTop{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.col .bar{width:100%;max-width:84px;height:var(--h);border-radius:10px 10px 4px 4px;background:var(--hatch);border:1px solid rgba(93,139,255,.25);position:relative;overflow:hidden;
+  transform-origin:bottom;animation:growY .9s var(--out) both;animation-delay:calc(var(--i) * 70ms)}
+.col.w .bar{background:var(--hatch-e);border-color:rgba(241,141,116,.35)}
+.col .crit{position:absolute;left:0;right:0;top:0;height:var(--c);background:linear-gradient(180deg,rgba(241,141,116,.55),rgba(241,141,116,.25));font-size:11px;color:#fff;display:grid;place-items:center}
+.col:hover .bar{filter:brightness(1.25)}
+.side{display:flex;flex-direction:column;gap:14px}
+.side .card{padding:16px 18px}
+.sw{position:relative;width:46px;height:26px;border-radius:13px;border:1px solid var(--line2);background:rgba(255,255,255,.06);flex:none;transition:background .3s,border-color .3s;padding:0}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--stratos);transition:transform .45s var(--spring),background .3s}
+.sw[aria-checked="true"]{background:rgba(59,114,237,.25);border-color:rgba(93,139,255,.6)}
+.sw[aria-checked="true"]::after{transform:translateX(20px);background:var(--blue-hi);box-shadow:0 0 12px rgba(93,139,255,.7)}
+.srow{display:flex;align-items:center;gap:10px;margin-top:14px}
+.srow b{font-weight:400}
+.mini{display:flex;align-items:center;gap:10px}
+.mini .disc{width:34px;height:34px}
+.mini b{display:block;font-size:15px;font-weight:400}.mini small{font-size:12px;color:var(--muted)}
+.comp-foot{display:flex;align-items:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.comp-foot .upd{margin-left:auto;font-size:12px;color:var(--muted);text-align:right}
+
+/* segmented sub-menu */
+.seg{position:relative;display:inline-flex;padding:4px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid var(--line2);max-width:100%;overflow-x:auto;scrollbar-width:none}
+.seg::-webkit-scrollbar{display:none}
+.seg button{position:relative;z-index:1;border:0;background:none;min-height:36px;padding:0 14px;border-radius:999px;font-size:13px;color:var(--muted);white-space:nowrap;transition:color .3s}
+.seg button[aria-pressed="true"]{color:#fff}
+.seg button .n{margin-left:6px;font-size:11px;opacity:.75}
+.seg-ind{position:absolute;z-index:0;top:4px;left:0;height:calc(100% - 8px);border-radius:999px;background:var(--blue);box-shadow:0 6px 18px rgba(59,114,237,.45);
+  transition:transform .5s var(--spring),width .5s var(--spring)}
+.swap{transition:opacity .2s,transform .2s}
+.swap.out{opacity:0;transform:translateY(8px)}
+
+/* lists */
+.list{margin-top:14px;padding:6px}
+.lh{display:flex;align-items:center;gap:10px;padding:12px 14px 6px}
+.lh h3{margin:0;font-weight:400;font-size:17px;flex:1}
+.li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 14px;align-items:center;width:100%;text-align:left;border:0;background:none;padding:12px 14px;border-radius:16px;
+  transition:background .2s;animation:fadeUp .5s var(--out) both;animation-delay:calc(var(--i) * 35ms)}
+.li:hover{background:rgba(255,255,255,.045)}
+.li .sv{grid-row:span 2;width:36px;height:36px;border-radius:12px;display:grid;place-items:center;font-size:13px;font-weight:600}
+.li b{font-weight:400;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .r{grid-row:span 2;text-align:right;font-size:12px;color:var(--muted)}
+.li .r em{display:block;font-style:normal;font-size:12px;margin-top:4px}
+.tagp{white-space:nowrap;display:inline-block;padding:3px 9px;border-radius:999px;font-size:11px;border:1px solid var(--line2);color:var(--ink2)}
+.tagp.w{border-color:rgba(241,141,116,.45);color:var(--ether)}
+.tagp.b{border-color:rgba(93,139,255,.45);color:var(--blue-hi)}
+
+/* systems grid */
+.sysg{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-top:16px}
+.syc{display:flex;flex-direction:column;min-height:236px;padding:18px}
+.syc .ringw{position:relative;width:112px;height:112px;margin:8px auto 18px}
+.syc .ringw svg{width:100%;height:100%;transform:rotate(-90deg)}
+.syc .ringw .g{position:absolute;inset:16px;border-radius:50%;display:grid;place-items:center;font-size:30px;color:var(--blue-hi);border:1px solid var(--line2);
+  background:radial-gradient(circle at 50% 35%,rgba(93,139,255,.16),transparent 70%)}
+.syc.w .ringw .g{color:var(--ether);background:radial-gradient(circle at 50% 35%,rgba(241,141,116,.16),transparent 70%)}
+.syc .arc{stroke-dasharray:var(--d) 400;animation:arc 1.2s var(--out) both;animation-delay:calc(var(--i) * 50ms + .1s)}
+@keyframes arc{from{stroke-dasharray:0 400}}
+.syc .bt{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:auto}
+.syc b{display:block;font-weight:400;font-size:15px}
+.syc small{font-size:12px;color:var(--muted)}
+
+/* devices */
+.devw{display:grid;grid-template-columns:220px minmax(0,1fr) 230px;gap:14px;align-items:stretch}
+.mode{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px;padding:18px 12px;position:relative}
+.mode .disc{margin-bottom:4px}
+.mode b{font-size:19px;font-weight:400;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mode small{font-size:12px;color:var(--muted)}
+.mode .ib{position:absolute;top:50%;margin-top:-17px;width:34px;height:34px}
+.mode .ib.l{left:8px}.mode .ib.r{right:8px}
+.mode .lbl{animation:fadeUp .4s var(--out) both}
+.center{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 16px}
+.center .cap{font-size:13px;color:var(--muted)}
+.center .note{margin-top:10px;font-size:14px;color:var(--ink2)}
+.scrub{position:relative;margin-top:16px;padding:58px 22px 18px;touch-action:none;user-select:none;-webkit-user-select:none}
+.ticks{display:flex;align-items:center;justify-content:space-between;height:72px}
+.ticks i{flex:none;width:3px;border-radius:2px;height:var(--h);background:linear-gradient(180deg,rgba(93,139,255,.9),rgba(93,139,255,.2));opacity:.55;transition:opacity .2s,transform .2s;
+  transform-origin:center;animation:tick .7s var(--out) both;animation-delay:calc(var(--i) * 6ms)}
+@keyframes tick{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.ticks i.w{background:linear-gradient(180deg,var(--ether),rgba(241,141,116,.25))}
+.ticks i.near{opacity:1}
+.knob{position:absolute;top:72px;width:46px;height:46px;margin-left:-23px;border-radius:50%;border:2px solid var(--ether);background:rgba(23,27,40,.85);display:grid;place-items:center;color:var(--ether);cursor:grab;
+  box-shadow:0 0 0 6px rgba(241,141,116,.12),0 0 30px rgba(241,141,116,.35);transition:left .08s linear}
+.knob:active{cursor:grabbing}
+.knob.anim{transition:left .6s var(--spring)}
+.klabel{position:absolute;top:6px;transform:translateX(-50%);padding:6px 12px;border-radius:12px;background:var(--carbon);border:1px solid var(--line2);font-size:12px;white-space:nowrap;pointer-events:none;transition:left .08s linear}
+.klabel b{font-weight:500}.klabel span{color:var(--muted)}
+.scrub-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;flex-wrap:wrap}
+
+/* insights */
+.gantt{padding:18px 20px 20px}
+.gh{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin-top:14px}
+.gh span{padding:10px 12px;border:1px solid var(--line2);border-right:0;font-size:13px;color:var(--ink2)}
+.gh span:first-child{border-radius:14px 0 0 14px}.gh span:last-child{border-right:1px solid var(--line2);border-radius:0 14px 14px 0}
+.gb{position:relative;margin-top:10px;background-image:radial-gradient(rgba(255,255,255,.12) 1px,transparent 1.3px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:22px 22px,calc(100% / 6) 100%;border-radius:12px;padding:6px 0}
+.grow2{position:relative;height:62px}
+.gbar{position:absolute;top:8px;bottom:8px;border-radius:14px;background:var(--blue);display:flex;align-items:center;padding:0 14px;font-size:13px;color:#fff;overflow:visible;cursor:pointer;min-width:12px;
+  transform-origin:left;animation:barIn .8s var(--out) both;animation-delay:calc(var(--i) * 90ms + .1s);border:0;text-align:left}
+.gbar span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gbar.open{background:linear-gradient(90deg,var(--blue) 0 var(--a),transparent var(--a)),var(--hatch);border:1px dashed rgba(93,139,255,.5)}
+.gbar.crit{box-shadow:0 8px 22px rgba(59,114,237,.25)}
+@keyframes barIn{from{transform:scaleX(0);opacity:0}to{transform:none;opacity:1}}
+.gl{position:absolute;top:50%;transform:translateY(-50%);font-size:13px;color:var(--ink2);white-space:nowrap;text-align:right;pointer-events:none;animation:fadeUp .5s .6s var(--out) both}
+.gl small{display:block;font-size:11px;color:var(--muted)}
+.bub{position:absolute;right:-6px;top:-30px;padding:4px 10px;border-radius:10px 10px 10px 2px;background:var(--ether);color:#2a1610;font-size:11px;white-space:nowrap;animation:pop .5s 1s var(--spring) both}
+.ins2{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:14px;margin-top:14px}
+.lr{display:grid;grid-template-columns:120px minmax(0,1fr) 44px;align-items:center;gap:12px;padding:9px 0;border:0;background:none;width:100%;text-align:left;border-radius:10px}
+.lr:hover{background:rgba(255,255,255,.03)}
+.lr span{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lr .tr{height:14px;border-radius:7px;background:rgba(255,255,255,.05);overflow:hidden}
+.lr .tr i{display:block;height:100%;width:var(--w);border-radius:7px;background:var(--hatch),linear-gradient(90deg,rgba(59,114,237,.6),rgba(93,139,255,.9));transform-origin:left;animation:barIn .9s var(--out) both;animation-delay:calc(var(--i) * 70ms)}
+.lr.w .tr i{background:var(--hatch-e),linear-gradient(90deg,rgba(241,141,116,.5),rgba(241,141,116,.9))}
+.lr.on span{color:var(--blue-hi)}
+.lr b{font-weight:400;text-align:right;font-size:14px}
+
+/* drawer */
+.scrim{position:fixed;inset:0;z-index:50;background:rgba(6,8,14,.5);opacity:0;pointer-events:none;transition:opacity .3s;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.scrim.show{opacity:1;pointer-events:auto}
+.drawer{position:fixed;z-index:51;top:14px;right:14px;bottom:14px;width:min(430px,calc(100vw - 28px));border-radius:28px;background:linear-gradient(180deg,#1E2436,#171B28);border:1px solid var(--line2);
+  box-shadow:0 30px 80px rgba(0,0,0,.5);transform:translateX(calc(100% + 30px));transition:transform .55s var(--spring);display:flex;flex-direction:column;overflow:hidden}
+.drawer.show{transform:none}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:22px 22px 10px}
+.dh .t{flex:1;min-width:0}
+.dh h3{margin:0;font-weight:400;font-size:24px;line-height:1.15}
+.dh p{margin:6px 0 0;font-size:13px;color:var(--muted)}
+.db{flex:1;overflow:auto;padding:6px 22px 24px}
+.db>*{animation:fadeUp .5s var(--out) both;animation-delay:calc(var(--i,0) * 60ms + .15s)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.kv div{padding:12px 14px;border-radius:16px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.kv small{display:block;font-size:12px;color:var(--muted)}
+.kv b{font-weight:400;font-size:17px}
+.msg{margin-top:14px;padding:14px 16px;border-radius:16px;background:var(--blue-soft);border:1px solid rgba(93,139,255,.25);font-size:14px;line-height:1.5;color:var(--ink)}
+.msg.w{background:var(--ether-soft);border-color:rgba(241,141,116,.35)}
+.dsec{margin:20px 0 8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.chk{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;margin-top:8px;border-radius:14px;border:1px solid var(--line);background:rgba(255,255,255,.03);text-align:left;font-size:14px;transition:background .2s,border-color .2s}
+.chk i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--stratos);flex:none;display:grid;place-items:center;transition:background .3s,border-color .3s}
+.chk[aria-pressed="true"]{border-color:rgba(93,139,255,.4);background:rgba(59,114,237,.08)}
+.chk[aria-pressed="true"] i{background:var(--blue);border-color:var(--blue)}
+.chk[aria-pressed="true"] i::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.chk[aria-pressed="true"] span{color:var(--ink2);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.3)}
+.dev{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;padding:10px 12px;border-radius:12px;border:0;background:none;text-align:left}
+.dev:hover{background:rgba(255,255,255,.04)}
+.dev i{width:8px;height:8px;border-radius:50%}
+.dev b{font-weight:400;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev span{font-size:12px;color:var(--muted)}
+.dev em{font-style:normal;font-size:13px;color:var(--ink2)}
+
+/* search palette */
+.pal{position:fixed;z-index:60;left:50%;top:12vh;width:min(620px,calc(100vw - 28px));transform:translate(-50%,-14px) scale(.97);opacity:0;pointer-events:none;
+  border-radius:24px;background:#1C2132;border:1px solid var(--line2);box-shadow:0 40px 100px rgba(0,0,0,.55);transition:opacity .25s,transform .45s var(--spring);overflow:hidden}
+.pal.show{opacity:1;transform:translate(-50%,0) scale(1);pointer-events:auto}
+.pal label{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.pal input{flex:1;border:0;outline:0;background:none;font-size:20px;font-weight:300}
+.pal input::placeholder{color:var(--faint)}
+.pres{max-height:52vh;overflow:auto;padding:8px}
+.pr{display:grid;grid-template-columns:90px minmax(0,1fr);gap:2px 12px;width:100%;padding:10px 12px;border:0;background:none;text-align:left;border-radius:14px}
+.pr small{grid-row:span 2;align-self:center;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--blue-hi)}
+.pr b{font-weight:400;font-size:15px}.pr span{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr.on,.pr:hover{background:rgba(59,114,237,.12)}
+.pno{padding:16px;color:var(--muted);font-size:14px}
+
+/* appearance */
+.ap .db{padding-top:0}
+.bgs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bgt{position:relative;aspect-ratio:3/4;border-radius:16px;border:2px solid transparent;background-size:cover;background-position:center;cursor:pointer;overflow:hidden;padding:0;
+  box-shadow:inset 0 0 0 1px var(--line2);transition:transform .3s var(--spring),border-color .2s}
+.bgt:hover{transform:translateY(-3px)}
+.bgt[aria-pressed="true"]{border-color:var(--blue-hi)}
+.bgt video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.bgt .nm{position:absolute;left:0;right:0;bottom:0;padding:18px 8px 7px;font-size:12px;color:#fff;text-align:left;background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.bgt .x,.bgt .star{position:absolute;top:6px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;display:grid;place-items:center;font-size:14px;line-height:1}
+.bgt .x{right:6px}.bgt .star{left:6px}
+.bgt .star .ico{width:14px;height:14px}
+.bgt .star.on{background:var(--blue);}
+.bgt .star.on .ico{fill:currentColor}
+.bgt .vt{position:absolute;right:6px;bottom:6px;z-index:1;padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.6);font-size:10px;font-weight:600;letter-spacing:.04em;color:#fff}
+.bgt.up{display:grid;place-items:center;align-content:center;gap:6px;background:rgba(255,255,255,.03);border:2px dashed var(--line2);box-shadow:none;color:var(--ink2);font-size:12px;text-align:center}
+.locs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.locs .tagp{cursor:default}
+.rng{display:grid;grid-template-columns:1fr auto;gap:8px 12px;align-items:center;margin-top:10px;font-size:14px;color:var(--ink2)}
+.rng output{font-size:13px;color:var(--ink)}
+.rng input{grid-column:1/-1;width:100%;accent-color:var(--blue);height:22px}
+.hint{font-size:12px;color:var(--muted);line-height:1.5;margin:8px 0 0}
+.ap .seg{margin-top:4px}
+.drop{outline:2px dashed var(--blue-hi);outline-offset:-10px}
+
+/* ripple + toast */
+.rip{position:absolute;border-radius:50%;background:rgba(255,255,255,.28);transform:scale(0);animation:rip .6s ease-out forwards;pointer-events:none}
+@keyframes rip{to{transform:scale(1);opacity:0}}
+.toast{position:fixed;z-index:80;left:50%;bottom:26px;transform:translateX(-50%);padding:12px 18px;border-radius:999px;background:var(--carbon);border:1px solid var(--line2);font-size:14px;box-shadow:0 16px 40px rgba(0,0,0,.4);animation:fadeUp .4s var(--spring)}
+
+/* responsive */
+@media (max-width:1320px){.ov{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ov .big{grid-column:1/-1;grid-row:auto}.devw{grid-template-columns:1fr 1fr}.devw .center{grid-column:1/-1;order:-1}}
+@media (max-width:1100px){.comp{grid-template-columns:1fr}.side{display:grid;grid-template-columns:repeat(3,1fr)}.ins2{grid-template-columns:1fr}.when{display:none}}
+@media (max-width:900px){
+  .stage-top,.stage-title{right:20px}.chips{right:18px;bottom:48px}
+  .app{display:block;height:auto;padding:10px}
+  .stage{height:330px}
+  .stage-title{top:84px}
+  .stage-stats{display:none}
+  .panel{margin:-34px 0 0;border-radius:28px}
+  .ptop{padding:14px 14px 0;gap:8px}
+  .phead{padding:16px 16px 4px}
+  .view{overflow:visible;padding:10px 14px 24px}
+  .ptitle h2{font-size:32px}
+  .side{grid-template-columns:1fr}
+}
+@media (max-width:640px){.ptop{flex-wrap:wrap}.ptop .tabs{order:9;width:100%;margin-top:4px}.ov{grid-template-columns:1fr}.devw{grid-template-columns:1fr}.cols{height:280px;gap:6px}.col h4{font-size:12px}.col .st{display:none}.gh span{font-size:11px;padding:8px 4px;text-align:center}
+  .lr{grid-template-columns:90px minmax(0,1fr) 36px}.tools .pill span{display:none}.gdr{height:28px}}
+
+/* calm motion */
+html.calm *,html.calm *::before,html.calm *::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+html.calm .stage .layer{transition:opacity .3s!important}
+@media print{.stage,.ptop,.tools,.drawer,.scrim{display:none!important}.app{display:block}.panel{margin:0}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="stage" id="stage" aria-label="Location">
+    <div class="layer" id="L0"></div><div class="layer" id="L1"></div>
+    <div class="dots"></div><div class="shade"></div>
+    <div class="stage-top">
+      <button class="brand" id="brand" type="button" aria-label="RAMsys Eye overview"><img src="data:image/png;base64,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" alt="RAMsys Eye"></button>
+      <img class="gdr" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNjAgMTAwIj48cmVjdCB3aWR0aD0iMzYwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2ZmZiIvPgo8dGV4dCB4PSIxNCIgeT0iNzQiIGZvbnQtZmFtaWx5PSJBcmlhbCBCbGFjayxBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI2OCIgZmlsbD0iIzBiM2E2ZSIgbGV0dGVyLXNwYWNpbmc9IjIiPklUVjwvdGV4dD4KPHJlY3QgeD0iMTY2IiB5PSIyMCIgd2lkdGg9IjMiIGhlaWdodD0iNjAiIGZpbGw9IiNlMDY2MmIiLz4KPHRleHQgeD0iMTg0IiB5PSI0NiIgZm9udC1mYW1pbHk9IkFyaWFsLEhlbHZldGljYSxzYW5zLXNlcmlmIiBmb250LXdlaWdodD0iNzAwIiBmb250LXNpemU9IjIyIiBmaWxsPSIjMGIzYTZlIiBsZXR0ZXItc3BhY2luZz0iMS41Ij5JTlRFUlRFQ0g8L3RleHQ+Cjx0ZXh0IHg9IjE4NCIgeT0iNzQiIGZvbnQtZmFtaWx5PSJBcmlhbCxIZWx2ZXRpY2Esc2Fucy1zZXJpZiIgZm9udC13ZWlnaHQ9IjcwMCIgZm9udC1zaXplPSIyMiIgZmlsbD0iI2UwNjYyYiIgbGV0dGVyLXNwYWNpbmc9IjEuNSI+VklTSU9OPC90ZXh0Pjwvc3ZnPg==" alt="ITV Intertech Vision">
+      <button class="circ" id="menu" type="button" aria-label="Appearance"><svg class="ico" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+    </div>
+    <div class="stage-title" id="stitle"></div>
+    <div class="chips" id="chips"></div>
+  </aside>
+
+  <main class="panel">
+    <div class="ptop">
+      <button class="circ" id="srch" type="button" aria-label="Search"><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button>
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Dashboard"><span class="tab-ind" id="tabInd"></span></nav>
+      <span class="sp"></span>
+      <span class="when" id="when"></span>
+      <button class="circ" id="bell" type="button" aria-label="Critical alarms"><svg class="ico" viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg></button>
+      <button class="circ" id="gear" type="button" aria-label="Appearance"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <img class="me" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWQ1ZmE4Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGIzYTZlIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+CjxyZWN0IHdpZHRoPSI5NiIgaGVpZ2h0PSI5NiIgZmlsbD0idXJsKCNnKSIvPjxjaXJjbGUgY3g9IjQ4IiBjeT0iMzgiIHI9IjE3IiBmaWxsPSIjZGZlOGYzIi8+PHBhdGggZD0iTTE0IDkyYzQtMjAgMTgtMzAgMzQtMzBzMzAgMTAgMzQgMzB6IiBmaWxsPSIjZGZlOGYzIi8+PC9zdmc+" alt="Demo User" title="Demo User · Executive">
+    </div>
+    <div class="phead">
+      <button class="circ" id="kebab" type="button" aria-label="Back to overview" style="width:42px;height:42px;background:rgba(255,255,255,.04)"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+      <div class="ptitle" aria-live="polite"><h2 id="ttl">Overview</h2></div>
+      <div class="tools" id="tools"></div>
+    </div>
+    <div class="view" id="view"></div>
+  </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dttl" tabindex="-1"></aside>
+<div class="pal" id="pal" role="dialog" aria-label="Search"><label><svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="pin" type="search" autocomplete="off" placeholder="Search locations, systems, devices, alarms"></label><div class="pres" id="pres"></div></div>
+<input type="file" id="file" accept="image/*,video/*" multiple hidden>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const h=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a){if(k==='on')for(const ev in a.on)e.addEventListener(ev,a.on[ev]);else if(k==='html')e.innerHTML=a[k];else e.setAttribute(k,a[k])}c.flat().forEach(x=>x!=null&&e.append(x));return e};
+function rng(seed){let a=0;for(const ch of String(seed))a=(a*31+ch.charCodeAt(0))|0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const fmt=n=>n.toLocaleString('en-US');
+function toast(m){const t=h('div',{class:'toast',role:'status'},m);document.body.append(t);setTimeout(()=>t.remove(),2600)}
+
+/* ---------- Demo data: sample systems, devices and alarm catalogue (fictional) ---------- */
+const p2=n=>String(n).padStart(2,'0');
+const SEVS=['Critical','High','Medium','Low'];
+const SEVC={Critical:'#ef3e3e',High:'#ff8a3d',Medium:'#4b8cff',Low:'#2fcf6a'};
+const SEVR={Critical:4,High:3,Medium:2,Low:1};
+const DSC={Healthy:'#2fcf6a',Warning:'#f5c542',Degraded:'#f59e2b',Faulty:'#ef3e3e',Offline:'#7d98b8'};
+const GROUPS={ops:{k:'Operations',c:'#ef6a5e'},sec:{k:'Security',c:'#5b8fb9'},av:{k:'Control-room AV',c:'#8a7ff0'},it:{k:'IT & Recording',c:'#3fb984'},fac:{k:'Facility',c:'#c9a227'}};
+
+/* Locations. Coordinates are approximate; the Smart Command Center is the room monitored by RAMsys Sentrl. */
+const LOCS=[
+  {id:'T1',name:'Terminal 1',short:'Terminal 1',air:'International Airport (Demo)',ll:[0,0],blk:'INTL',scale:1,lab:[-66,-62,'end'],
+    room:'T1 immigration operations room',
+    zones:[['ops','T1 Immigration Ops Room','online'],['comms','T1 Comms Room L2','online'],['field','Arrivals Immigration Hall','online'],['field','Departures Immigration','online'],['field','Smart Gates · Arrivals','maintenance'],['field','Concourse D Transfer','online']]},
+  {id:'T2',name:'Terminal 2',short:'Terminal 2',air:'International Airport (Demo)',ll:[0,0],blk:'INTL',scale:.6,lab:[58,-60,'start'],
+    room:'T2 immigration operations room',
+    zones:[['ops','T2 Immigration Ops Room','online'],['comms','T2 Comms Room','online'],['field','Arrivals Immigration','online'],['field','Departures Immigration','online'],['field','Smart Gates','online']]},
+  {id:'T3',name:'Terminal 3',short:'Terminal 3',air:'International Airport (Demo)',ll:[0,0],blk:'INTL',scale:1.4,lab:[66,6,'start'],
+    room:'T3 immigration operations room',
+    zones:[['ops','T3 Immigration Ops Room','online'],['comms','T3 Comms Room B1','online'],['field','Arrivals Hall A','online'],['field','Arrivals Hall B','online'],['field','Departures Immigration','online'],['field','Smart Gates · Arrivals','online'],['field','Smart Gates · Departures','maintenance'],['field','Concourse A/B/C Transfer','online']]},
+  {id:'RGA',name:'Regional Airport',short:'Regional Airport',air:'Regional Airport (Demo)',ll:[0,0],blk:'RGA',scale:.8,lab:[40,-84,'start'],
+    room:'RGA immigration operations room',
+    zones:[['ops','RGA Immigration Ops Room','online'],['comms','RGA Comms Room','online'],['field','Arrivals Immigration','online'],['field','Departures Immigration','online'],['field','Smart Gates','offline']]},
+  {id:'SCC',name:'Smart Command Center',short:'Command Center',air:'Smart Command & Control · Zone 1 + Zone 2',ll:[0,0],blk:'SCC',scale:1,hub:1,lab:[-40,-48,'end'],
+    room:'Zone 1 + Zone 2 · 38 operator positions (RAMsys Sentrl)',
+    zones:[['ops','Zone 1 Operations Floor','online'],['ops','Zone 2 Operations Floor','online'],['ops','Video Walls','online'],['ops','Meeting & Briefing Room','online'],['ops','Supervisor Office','online'],['comms','Technical Rack Wall','online'],['field','Entrance & Airlock','online']]}
+];
+const LOC=Object.fromEntries(LOCS.map(l=>[l.id,l]));
+
+/* Systems: the Sentrl demo catalogue, plus the smart gates from its event automation. dev = [prefix, model, count at scale 1, zone type] */
+const SYS=[
+  {k:'EVT',n:'Event Automation',g:'ops',ic:'⚑',c:'#ef6a5e',dev:[['EVT-DUR','Counter duress button',6,'field'],['EVT-AIA','AI video analytics node',2,'comms'],['EVT-SCN','Wall scenario engine',1,'ops']]},
+  {k:'GATE',n:'Smart Gates',g:'ops',ic:'⇶',c:'#f08a5d',dev:[['GATE','Smart gate (e-Gate)',10,'field'],['GATE-QS','Queue sensor',3,'field'],['GATE-PPR','Passport reader',4,'field']]},
+  {k:'CAM',n:'CCTV',g:'sec',ic:'◉',c:'#5b8fb9',dev:[['CAM','Axis IP camera',12,'field'],['NVR','Network video recorder',2,'comms']]},
+  {k:'ACS',n:'Access Control',g:'sec',ic:'⊟',c:'#9aa5af',dev:[['ACS-DOOR','Controlled door',5,'field'],['ACS-CTL','Door controller',2,'comms'],['ACS-RDR','Badge reader',4,'field']]},
+  {k:'BWC',n:'Axis Body-Worn',g:'sec',ic:'◎',c:'#e07b39',dev:[['BWC','Axis W110 body-worn camera',8,'field'],['BWC-DOCK','Axis W700 docking station',2,'ops']]},
+  {k:'VW',n:'LG Video Wall',g:'av',ic:'▦',c:'#8a7ff0',dev:[['VW-CAB','LG LED cabinet',8,'ops'],['VW-PSU','LG redundant PSU',2,'ops'],['VW-CTL','LG wall controller',1,'ops']]},
+  {k:'BAR',n:'Barco CTRL',g:'av',ic:'▤',c:'#8a7ff0',dev:[['BAR-NODE','Barco CTRL processing node',2,'comms'],['BAR-DEC','Barco decoder',4,'ops'],['BAR-GW','Barco CTRL gateway',1,'comms']]},
+  {k:'RAMS',n:'RAMsys Ctrl / Share',g:'av',ic:'✦',c:'#8a7ff0',dev:[['RAMS-CTRL','RAMsys Ctrl server',1,'comms'],['RAMS-SHR','RAMsys Share encoder',2,'ops']]},
+  {k:'AUD',n:'Audio & PA',g:'av',ic:'♪',c:'#c9a227',dev:[['AUD-DSP','Audio DSP',1,'comms'],['AUD-AMP','PA amplifier',3,'comms'],['AUD-MIC','Wireless mic receiver',2,'ops'],['AUD-SPK','PA speaker zone',4,'field']]},
+  {k:'LGT',n:'Lighting',g:'av',ic:'☀',c:'#c9a227',dev:[['LGT-CTL','Lighting controller',1,'ops'],['LGT-DALI','DALI gateway',2,'ops']]},
+  {k:'CON',n:'Smart Consoles',g:'av',ic:'⌨',c:'#c9a227',dev:[['CON','Sit/stand operator console',6,'ops'],['CON-KVM','KVM receiver',3,'ops']]},
+  {k:'NET',n:'Network',g:'it',ic:'⇅',c:'#3fb984',dev:[['NET-CORE','Core switch',2,'comms'],['NET-ACC','Access switch',4,'comms'],['NET-FW','Firewall',1,'comms']]},
+  {k:'SRV',n:'Servers',g:'it',ic:'▥',c:'#3fb984',dev:[['SRV-VMS','VMS server',2,'comms'],['SRV-APP','Application server',2,'comms'],['SRV-STO','Storage array',1,'comms']]},
+  {k:'REC',n:'Smart Recording',g:'it',ic:'⏺',c:'#e07b39',dev:[['REC-CAP','Screen capture agent',4,'ops'],['REC-LIB','Recording library',1,'comms']]},
+  {k:'ENV',n:'Environment',g:'fac',ic:'❄',c:'#3fb984',dev:[['ENV-UPS','UPS',2,'comms'],['ENV-CRAC','Precision cooling unit',2,'comms'],['ENV-SNS','Rack environment sensor',3,'comms'],['ENV-LEAK','Leak detection cable',1,'comms']]}
+];
+const SYSM=Object.fromEntries(SYS.map(s=>[s.k,s]));
+
+/* the Smart Command Center keeps the device names used on the RAMsys Sentrl floor plan */
+const HUBN={
+  'CON':[...Array(20)].map((_,i)=>`Z1-CON-${p2(i+1)}|Zone 1 Operations Floor`).concat([...Array(18)].map((_,i)=>`Z2-CON-${p2(i+1)}|Zone 2 Operations Floor`),['SUP-CON-01|Supervisor Office']),
+  'VW-CAB':['Z1-VW-01','Z1-VW-02','Z1-VW-03','Z1-VW-04','Z2-VW-01','Z2-VW-02','Z2-VW-03','Z2-VW-04'].map(x=>x+'|Video Walls'),
+  'EVT-SCN':['Z1-WALL-SCN|Video Walls','Z2-WALL-SCN|Video Walls'],
+  'CAM':['CAM01|Zone 1 Operations Floor','CAM02|Zone 2 Operations Floor','CAM03|Video Walls','CAM04|Meeting & Briefing Room','CAM05|Supervisor Office','CAM06|Supervisor Office','CAM07|Entrance & Airlock'],
+  'ACS-DOOR':['ENT-DOOR-01|Entrance & Airlock','ENT-DOOR-02|Entrance & Airlock','MEET-DOOR-01|Meeting & Briefing Room','SUP-DOOR-01|Supervisor Office'],
+  'NET-CORE':['TECH-NET-01|Technical Rack Wall','TECH-NET-02|Technical Rack Wall'],
+  'SRV-APP':['TECH-SRV-01|Technical Rack Wall','TECH-SRV-02|Technical Rack Wall'],
+  'BAR-NODE':['TECH-BAR-01|Technical Rack Wall','TECH-BAR-02|Technical Rack Wall'],
+  'REC-LIB':['TECH-REC-01|Technical Rack Wall'],
+  'ENV-SNS':['TECH-ENV-01|Technical Rack Wall'],
+  'RAMS-CTRL':['SUP-RCTL-01|Supervisor Office'],
+  'RAMS-SHR':['TECH-RSHR-01|Technical Rack Wall'],
+  'BWC-DOCK':['SUP-BWC-DOCK-01|Supervisor Office','SUP-BWC-DOCK-02|Supervisor Office'],
+  'AUD-AMP':['Z1-AUD-01|Zone 1 Operations Floor','Z2-AUD-01|Zone 2 Operations Floor','MEET-AV-01|Meeting & Briefing Room'],
+  'LGT-CTL':['Z1-LGT-01|Zone 1 Operations Floor'],
+  'LGT-DALI':['Z2-LGT-01|Zone 2 Operations Floor','MEET-LGT-01|Meeting & Briefing Room']
+};
+
+/* alarm catalogue: [title, severity, message(ctx), device prefix] */
+const AT={
+  EVT:[['Facility Incident','Critical',c=>`Priority incident in ${c.z}; CCTV, GIS and incident scenario pushed to the wall`,'EVT-SCN'],
+       ['Unattended Item','Critical',c=>`Unattended bag for ${c.ri(4,9)} min in ${c.z} (AI analytics)`,'EVT-AIA'],
+       ['Counter Duress','Critical',c=>`Duress button pressed at counter ${c.ri(1,40)}, ${c.z}`,'EVT-DUR'],
+       ['Scenario Delay','Medium',c=>`Wall scenario took ${c.ri(9,16)} s to apply (target 5 s)`,'EVT-SCN']],
+  GATE:[['Smart Gate Offline','High',c=>`${c.d.id} not processing passengers; ${c.z} running on fewer lanes`,'GATE'],
+        ['Queue Threshold','High',c=>`Passport control queue ${c.ri(26,44)} min in ${c.z} (target 20 min)`,'GATE-QS'],
+        ['Crowd Density','High',c=>`${c.ri(180,320)} people in ${c.z}; threshold 160`,'GATE-QS'],
+        ['Passport Reader Fault','Medium',c=>`${c.d.id} failing document reads (${c.ri(12,30)}% retries)`,'GATE-PPR']],
+  CAM:[['Video Loss','Critical',c=>`No video from ${c.d.id} at the recorder`,'CAM'],
+       ['Camera Tamper','High',c=>`Scene changed on ${c.d.id}; camera obstructed or moved`,'CAM'],
+       ['Unauthorised Person','Critical',c=>`Unrecognised person in a restricted area of ${c.z}, ${c.ri(88,97)}% confidence`,'CAM'],
+       ['Recorder Disk Error','Medium',c=>`${c.d.id} reports ${c.ri(2,6)} disk health warnings`,'NVR']],
+  ACS:[['Door Forced','Critical',c=>`${c.d.id} forced open with no valid badge`,'ACS-DOOR'],
+       ['Door Held Open','High',c=>`${c.d.id} held open ${c.ri(60,240)} s (limit 30 s)`,'ACS-DOOR'],
+       ['Tailgating','High',c=>`Two people through ${c.d.id} on one badge`,'ACS-DOOR'],
+       ['Controller Offline','High',c=>`${c.d.id} lost; doors on local fallback`,'ACS-CTL'],
+       ['Invalid Badge','Medium',c=>`${c.ri(3,6)} rejected badges in 2 min at ${c.d.id}`,'ACS-RDR']],
+  BWC:[['Emergency Record','Critical',c=>`${c.d.id} started emergency recording in ${c.z}`,'BWC'],
+       ['Transfer Failed','High',c=>`Upload failed on ${c.d.id}; ${c.ri(2,9)} GB pending`,'BWC-DOCK'],
+       ['Battery Low in Field','Medium',c=>`${c.d.id} battery ${c.ri(5,12)}% in ${c.z}`,'BWC'],
+       ['Unit Not Docked','Low',c=>`${c.d.id} not returned after shift`,'BWC']],
+  VW:[['Module Fault','High',c=>`LED module R${c.ri(1,6)}C${c.ri(1,24)} on ${c.d.id} not responding`,'VW-CAB'],
+      ['Power Supply','High',c=>`${c.d.id} failed; redundant supply carrying the load`,'VW-PSU'],
+      ['Cabinet Temperature','High',c=>`${c.d.id} at ${c.ri(47,54)} °C (limit 45 °C)`,'VW-CAB'],
+      ['Signal Loss','Medium',c=>`Input ${c.ri(1,16)} has no signal from the Barco decoder`,'VW-CTL']],
+  BAR:[['Service Down','Critical',c=>`CTRL service "Wall Manager" stopped on ${c.d.id}`,'BAR-NODE'],
+       ['Decoder Offline','High',c=>`${c.d.id} unreachable; wall output frozen`,'BAR-DEC'],
+       ['CTRL Server CPU','Medium',c=>`${c.d.id} CPU at ${c.ri(86,97)}% for 5 min`,'BAR-NODE'],
+       ['Media Source Lost','Medium',c=>`Source "${c.pk(['VMS Grid A','GIS Map','Flight Info','Queue Dashboard'])}" not streaming`,'BAR-GW']],
+  RAMS:[['Scenario Failed','High',c=>`Scenario "${c.pk(['Facility Incident','Queue Alert','Gate Fault'])}" did not complete; layout not applied`,'RAMS-CTRL'],
+        ['Share Session Dropped','Medium',c=>`RAMsys Share stream to ${c.pk(['Command Center','Supervisor','Mobile'])} dropped`,'RAMS-SHR'],
+        ['Licence Expiring','Low',c=>`Share licence expires in ${c.ri(10,30)} days`,'RAMS-CTRL']],
+  AUD:[['Amplifier Fault','High',c=>`${c.d.id} channel ${c.ri(1,8)} in protect mode`,'AUD-AMP'],
+       ['DSP Offline','High',c=>`${c.d.id} not responding; PA zones muted`,'AUD-DSP'],
+       ['Speaker Line Fault','Medium',c=>`Line impedance out of range on ${c.d.id} (${c.z})`,'AUD-SPK'],
+       ['Mic Battery Low','Medium',c=>`${c.d.id} battery at ${c.ri(6,14)}%`,'AUD-MIC']],
+  LGT:[['Controller Offline','High',c=>`${c.d.id} lost; lighting scenes unavailable`,'LGT-CTL'],
+       ['Scene Recall Failed','Medium',c=>`Scene "Incident Mode" did not recall on ${c.d.id}`,'LGT-CTL'],
+       ['DALI Bus Fault','Medium',c=>`${c.ri(2,7)} fittings not answering on ${c.d.id}`,'LGT-DALI']],
+  CON:[['Workstation Offline','High',c=>`KVM link lost at ${c.d.id}; operator screens dark`,'CON-KVM'],
+       ['Desk Lift Fault','Medium',c=>`${c.d.id} actuator error; desk locked at ${c.ri(72,118)} cm`,'CON'],
+       ['Position Unattended','High',c=>`${c.d.id} unattended ${c.ri(6,15)} min during an active incident`,'CON']],
+  NET:[['Switch Temperature','High',c=>`${c.d.id} at ${c.ri(67,74)} °C (warning 65 °C)`,'NET-CORE'],
+       ['Uplink Down','Critical',c=>`Uplink Te1/0/${c.ri(1,48)} on ${c.d.id} down; running on a single path`,'NET-CORE'],
+       ['Packet Loss','Medium',c=>`${c.ri(2,6)}% loss on video VLAN ${c.ri(100,240)} at ${c.d.id}`,'NET-ACC'],
+       ['Firewall Session Limit','Medium',c=>`${c.d.id} sessions at ${c.ri(84,93)}%`,'NET-FW']],
+  SRV:[['Server Unreachable','Critical',c=>`${c.d.id} not answering; services failing over`,'SRV-APP'],
+       ['Disk Space','High',c=>`Volume D: on ${c.d.id} is ${c.ri(92,98)}% full`,'SRV-VMS'],
+       ['Memory Usage','Medium',c=>`${c.d.id} memory at ${c.ri(88,96)}% for 10 min`,'SRV-APP'],
+       ['Storage Degraded','High',c=>`${c.d.id} RAID rebuilding after disk ${c.ri(3,12)} failed`,'SRV-STO']],
+  REC:[['Capture Source Lost','High',c=>`${c.d.id} stopped recording operator screens`,'REC-CAP'],
+       ['Storage Threshold','High',c=>`${c.d.id} ${c.ri(86,94)}% full; retention at risk`,'REC-LIB'],
+       ['Bookmark Sync','Medium',c=>`${c.ri(3,12)} incident bookmarks not linked to CCTV`,'REC-LIB']],
+  ENV:[['Rack Temperature','High',c=>`${c.d.id} inlet ${(29+c.R()*5).toFixed(1)} °C (limit 27 °C)`,'ENV-SNS'],
+       ['UPS on Battery','Critical',c=>`Mains lost; ${c.d.id} on battery with ${c.ri(9,24)} min runtime`,'ENV-UPS'],
+       ['Water Leak','Critical',c=>`Leak detected under the raised floor (${c.d.id})`,'ENV-LEAK'],
+       ['Cooling Unit Alarm','High',c=>`${c.d.id} high head pressure`,'ENV-CRAC'],
+       ['Humidity','Medium',c=>`Relative humidity ${c.ri(64,76)}% at ${c.d.id}`,'ENV-SNS']]
+};
+/* guided first-line checks per system (same as RAMsys Sentrl) */
+const CHK={
+  EVT:['Review scenario on wall','Confirm location on GIS','Dispatch site team','Bookmark recording'],
+  GATE:['Check gate on CCTV','Restart gate application','Open manual counter','Log with asset context'],
+  VW:['Check module power LED','Swap to spare module','Verify Barco output','Log with asset context'],
+  BAR:['Check CTRL services','Restart affected service','Verify wall layout','Escalate with asset context'],
+  RAMS:['Re-run scenario','Check RAMsys Ctrl service','Verify Barco link'],
+  AUD:['Check DSP status','Reset amplifier channel','Test PA zone'],
+  LGT:['Ping lighting controller','Recall scene manually','Check DALI bus'],
+  CON:['Check desk power','Reset actuator','Verify KVM link'],
+  NET:['Confirm rack cooling','Check device ventilation','Review power and port health','Escalate with asset context'],
+  SRV:['Check host on console','Review service failover','Free disk / memory','Escalate with asset context'],
+  ENV:['Confirm rack cooling','Check UPS load','Inspect raised floor','Escalate to facilities'],
+  REC:['Check capture agent','Verify storage pool','Re-link bookmarks'],
+  BWC:['Open live BWC stream','Contact officer by radio','Check dock station'],
+  CAM:['Verify on adjacent camera','Check stream at recorder','Dispatch technician'],
+  ACS:['Verify on camera','Contact door owner','Secure door']
+};
+const OFFT=new Set(['Video Loss','Server Unreachable','Smart Gate Offline','Controller Offline','DSP Offline','Decoder Offline','Workstation Offline']);
+/* the Command Center opens with the same alarms seeded on the RAMsys Sentrl dashboard */
+const HUBF={EVT:'Facility Incident',NET:'Switch Temperature',BWC:'Emergency Record',VW:'Module Fault',BAR:'Decoder Offline',CON:'Desk Lift Fault',CAM:'Unauthorised Person',REC:'Storage Threshold',ACS:'Door Held Open'};
+
+/* ---- build devices and alarms (seeded, so the same on every load) ---- */
+const DEV=[],ALM=[];const NOW=Date.now();
+LOCS.forEach(L=>{
+  L.zt={ops:[],comms:[],field:[]};L.zones.forEach(([t,n])=>L.zt[t].push(n));
+  L.sys=SYS.filter(s=>!(L.hub&&s.k==='GATE')).map(s=>s.k);
+  L.sys.forEach(k=>{const R=rng(L.id+k);
+    SYSM[k].dev.forEach(([px,model,n,zt])=>{const named=L.hub&&HUBN[px];const cnt=named?named.length:Math.max(1,Math.round(n*L.scale));
+      for(let i=0;i<cnt;i++){const zl=L.zt[zt];const [id,zone]=named?named[i].split('|'):[`${L.id}-${px}-${p2(i+1)}`,zl[i%zl.length]];
+        DEV.push({id,loc:L.id,sys:k,px,model,zone,base:Math.round(91+R()*9),fw:`${1+Math.floor(R()*5)}.${Math.floor(R()*10)}.${Math.floor(R()*30)}`,temp:Math.round(27+R()*17),up:(97.6+R()*2.39).toFixed(2),hb:Math.round(2+R()*55)})}})});
+});
+const DEVBY=Object.fromEntries(DEV.map(d=>[d.id,d]));
+LOCS.forEach(L=>L.sys.forEach(k=>{const R=rng('al'+L.id+k),ri=(a,b)=>a+Math.floor(R()*(b-a+1)),pk=a=>a[Math.floor(R()*a.length)];
+  const tp=AT[k],idx=tp.map((_,i)=>i);for(let i=idx.length-1;i>0;i--){const j=Math.floor(R()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]]}
+  const forced=L.hub&&HUBF[k];if(forced){const f=tp.findIndex(t=>t[0]===forced);idx.splice(idx.indexOf(f),1);idx.unshift(f)}
+  const n=Math.min(tp.length,2+Math.floor(R()*3));
+  for(let j=0;j<n;j++){const t=tp[idx[j]];const own=DEV.filter(d=>d.loc===L.id&&d.sys===k);const pool=own.filter(d=>d.px===t[3]);const d=pk(pool.length?pool:own);
+    const u=R(),st=forced?'Active':j===0?(u<.42?'Active':u<.58?'Ack':'Resolved'):(u<.08?'Active':u<.18?'Ack':'Resolved');
+    const ago=st==='Active'?ri(2,420):st==='Ack'?ri(20,900):ri(60,1400);
+    ALM.push({id:'ALM-'+(52000+ALM.length*7+ri(0,6)),loc:L.id,sys:k,dev:d.id,t:t[0],sev:t[1],m:t[2]({L,d,z:d.zone,ri,pk,R}),st,ts:NOW-ago*60000})}
+}));
+
+/* ---- derived state ---- */
+const isOpen=a=>a.st!=='Resolved';
+const almOf=(loc,sys)=>ALM.filter(a=>(!loc||a.loc===loc)&&(!sys||a.sys===sys));
+function devState(d){const op=ALM.filter(a=>a.dev===d.id&&isOpen(a));if(!op.length)return{st:'Healthy',hp:d.base,al:op};
+  const w=op.reduce((x,a)=>SEVR[a.sev]>SEVR[x.sev]?a:x);
+  if(OFFT.has(w.t))return{st:'Offline',hp:0,al:op};
+  if(w.sev==='Critical')return{st:'Faulty',hp:Math.round(d.base*.38),al:op};
+  if(w.sev==='High')return{st:'Degraded',hp:Math.round(d.base*.66),al:op};
+  return{st:'Warning',hp:Math.round(d.base*.86),al:op}}
+function sevCount(list){const s={};SEVS.forEach(x=>s[x]=list.filter(a=>a.sev===x).length);return s}
+function sysStat(loc,k){const ds=DEV.filter(d=>d.loc===loc&&d.sys===k).map(devState);const al=almOf(loc,k).filter(isOpen);const sev=sevCount(al);
+  return{n:ds.length,hp:Math.round(ds.reduce((a,x)=>a+x.hp,0)/ds.length),bad:ds.filter(x=>x.st!=='Healthy').length,sev,open:al.length,worst:SEVS.find(s=>sev[s])||null}}
+function locStat(loc){const al=almOf(loc),op=al.filter(isOpen),sev=sevCount(op);const ds=DEV.filter(d=>d.loc===loc).map(devState);
+  return{tot:al.length,open:op.length,res:al.length-op.length,sev,worst:SEVS.find(s=>sev[s])||null,n:ds.length,hp:Math.round(ds.reduce((a,x)=>a+x.hp,0)/ds.length),healthy:ds.filter(x=>x.st==='Healthy').length}}
+const pickSys=loc=>LOC[loc].sys.map(k=>({k,s:sysStat(loc,k)})).sort((a,b)=>((SEVR[b.s.worst]||0)-(SEVR[a.s.worst]||0))||(b.s.open-a.s.open)||(a.s.hp-b.s.hp))[0].k;
+const hcol=p=>p>=90?'#2fcf6a':p>=75?'#f5c542':p>=50?'#f59e2b':'#ef3e3e';
+function tm(ts){const d=new Date(ts),m=Math.round((NOW-ts)/60000);return `${p2(d.getHours())}:${p2(d.getMinutes())} · ${m<60?m+' min':Math.floor(m/60)+' h '+(m%60)+' min'} ago`}
+
+
+/* ---------- RAMsys Eye executive tablet view: same locations, systems, devices and alarms as RAMsys Eye demo (data.js) ---------- */
+const TSEV={Critical:'var(--crit)',High:'var(--serious)',Medium:'var(--warn)',Low:'var(--none)'};
+const TDEV={Healthy:'var(--good)',Warning:'var(--warn)',Degraded:'var(--serious)',Faulty:'var(--crit)',Offline:'var(--none)'};
+const SICON={Critical:'!',High:'▲',Medium:'●',Low:'–'};
+const T={scr:'overview',loc:'T3',sysLoc:'all'};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const SVGNS='http://www.w3.org/2000/svg';
+const sv=(t,a={})=>{const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e};
+const attrs=o=>Object.fromEntries(Object.entries(o).filter(([,v])=>v!=null&&v!==false));
+const ease=t=>1-Math.pow(1-t,3);
+
+/* ---------- derived figures ---------- */
+const HR=3600e3;
+const hourLabel=t=>p2(new Date(t).getHours())+':00';
+const BUCKETS=[...Array(24)].map((_,i)=>NOW-(24-i)*HR);
+const rr=rng('resolve');const RESOLVED_AT=new Map(ALM.filter(a=>a.st==='Resolved').map(a=>[a.id,Math.min(NOW-6e4,a.ts+(10+rr()*80)*6e4)]));
+function activity(loc){const al=ALM.filter(a=>!loc||a.loc===loc);
+  const raised=BUCKETS.map(s=>al.filter(a=>a.ts>=s&&a.ts<s+HR).length);
+  const resolved=BUCKETS.map(s=>al.filter(a=>{const t=RESOLVED_AT.get(a.id);return t&&t>=s&&t<s+HR}).length);
+  return{labels:BUCKETS.map(hourLabel),raised,resolved}}
+const ackR=rng('ack');const ACK7=[...Array(7)].map((_,i)=>Math.round(38+ackR()*18-i*.8));
+const DAYS=[...Array(7)].map((_,i)=>new Date(NOW-(6-i)*864e5).toLocaleDateString('en-US',{weekday:'short'}));
+function sysAgg(k,loc){const locs=loc==='all'?LOCS.filter(l=>l.sys.includes(k)):[LOC[loc]];
+  const devs=DEV.filter(d=>d.sys===k&&locs.some(l=>l.id===d.loc)).map(d=>({d,...devState(d)}));
+  const al=ALM.filter(a=>a.sys===k&&locs.some(l=>l.id===a.loc));
+  return{devs,al,open:al.filter(isOpen),hp:Math.round(devs.reduce((a,x)=>a+x.hp,0)/devs.length)}}
+
+</script>
+<script>
+/* ==========================================================================
+   RAMsys Eye · Aeros theme — same demo sample data, new UI
+   ========================================================================== */
+const I={
+  bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  heart:'<path d="M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z"/>',
+  clock:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+  check:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  chip:'<rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  chevR:'<path d="m9 6 6 6-6 6"/>',chevL:'<path d="m15 6-6 6 6 6"/>',
+  back:'<path d="M19 12H5M11 6l-6 6 6 6"/>',
+  sliders:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/>',
+  pen:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  frame:'<path d="M7 3v4H3M17 3v4h4M7 21v-4H3M17 21v-4h4"/><rect x="7" y="7" width="10" height="10" rx="1"/>',
+  spark:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  refresh:'<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>',
+  folder:'<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',x:'<path d="M6 6l12 12M18 6 6 18"/>',
+  star:'<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  grid:'<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
+  dev:'<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  code:'<path d="m8 9-4 3 4 3M16 9l4 3-4 3"/>'
+};
+const ic=(n,c='ico')=>`<svg class="${c}" viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+const ib=(n,label,fn,cls='ib')=>h('button',{class:cls,type:'button','aria-label':label,title:label,html:ic(n),on:{click:e=>{e.stopPropagation();fn(e)}}});
+const SEVK={Critical:'var(--ether)',High:'#F4B6A4',Medium:'var(--blue-hi)',Low:'var(--stratos)'};
+const SEVBG={Critical:'rgba(241,141,116,.2)',High:'rgba(244,182,164,.14)',Medium:'rgba(59,114,237,.2)',Low:'rgba(79,91,138,.3)'};
+const STC={Healthy:'var(--blue-hi)',Warning:'#F4B6A4',Degraded:'var(--ether)',Faulty:'var(--ether)',Offline:'var(--stratos)'};
+const GRP=[['all','All'],['ops','Operations'],['sec','Security'],['av','Control-room AV'],['it','IT & Recording'],['fac','Facility']];
+const TABS=[['overview','Overview'],['alarms','Alarms'],['systems','Systems'],['devices','Devices'],['insights','Insights']];
+const TITLE={overview:'Overview',alarms:'Alarm Composition',systems:'Systems',devices:'Device Health',insights:'Insights'};
+Object.assign(T,{scr:'overview',loc:'all',sev:'all',showAck:true,critFirst:true,grp:'all',dsys:null,dflt:0,dpos:.5});
+const ago=ts=>{const m=Math.max(1,Math.round((NOW-ts)/6e4));return m<60?m+' min ago':Math.floor(m/60)+' h '+(m%60)+' min ago'};
+const hhmm=ts=>{const d=new Date(ts);return p2(d.getHours())+':'+p2(d.getMinutes())};
+const calm=()=>document.documentElement.classList.contains('calm');
+
+/* ---------- scope ---------- */
+const scoped=x=>T.loc==='all'||x.loc===T.loc;
+const ALS=()=>ALM.filter(scoped);
+const DEVS=()=>DEV.filter(scoped);
+const scopeName=()=>T.loc==='all'?'All sites':LOC[T.loc].short;
+function sysIn(){const keys=T.loc==='all'?SYS.map(s=>s.k):LOC[T.loc].sys;return keys.map(k=>({Y:SYSM[k],A:sysAgg(k,T.loc==='all'?'all':T.loc)}))}
+
+/* ---------- small chart builders (SVG strings) ---------- */
+let gid=0;
+function smooth(P){if(P.length<2)return'';let d=`M${P[0][0]},${P[0][1]}`;
+  for(let i=0;i<P.length-1;i++){const p0=P[i-1]||P[i],p1=P[i],p2_=P[i+1],p3=P[i+2]||p2_;
+    d+=` C${(p1[0]+(p2_[0]-p0[0])/6).toFixed(1)},${(p1[1]+(p2_[1]-p0[1])/6).toFixed(1)} ${(p2_[0]-(p3[0]-p1[0])/6).toFixed(1)},${(p2_[1]-(p3[1]-p1[1])/6).toFixed(1)} ${p2_[0].toFixed(1)},${p2_[1].toFixed(1)}`}
+  return d}
+function bigLine(vals,labels){const W=400,H=200,B=H-36,mx=Math.max(1,...vals)*1.15,X=i=>8+i*(W-24)/(vals.length-1),Y=v=>B-v/mx*(B-14);
+  const P=vals.map((v,i)=>[X(i),Y(v)]),id='g'+(++gid),d=smooth(P);
+  let drops='',dots='',lab='';
+  P.forEach(([x,y],i)=>{drops+=`<line x1="${x}" x2="${x}" y1="${y}" y2="${B}" stroke="url(#${id}d)" stroke-width="1" class="grow" style="animation-delay:${.4+i*.03}s"/>`;
+    dots+=`<circle cx="${x}" cy="${B+12}" r="1.4" fill="var(--faint)"/>`;
+    if(i%4===0||i===vals.length-1)lab+=`<text x="${x}" y="${H-2}" text-anchor="middle" class="axl" style="font-size:12px">${labels[i].slice(0,5)}</text>`});
+  const L=P[P.length-1];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Alarms raised per hour, last 24 hours"><defs>
+    <linearGradient id="${id}s" x1="0" x2="1"><stop offset="0" stop-color="#4F5B8A"/><stop offset=".55" stop-color="#5D8BFF"/><stop offset=".85" stop-color="#9b8cff"/><stop offset="1" stop-color="#F18D74"/></linearGradient>
+    <linearGradient id="${id}a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B72ED" stop-opacity=".32"/><stop offset="1" stop-color="#3B72ED" stop-opacity="0"/></linearGradient>
+    <linearGradient id="${id}d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5D8BFF" stop-opacity=".55"/><stop offset="1" stop-color="#5D8BFF" stop-opacity="0"/></linearGradient></defs>
+    <path d="${d} L${L[0]},${B} L${P[0][0]},${B}Z" fill="url(#${id}a)" class="fadein"/>${drops}
+    <path d="${d}" fill="none" stroke="url(#${id}s)" stroke-width="2.4" stroke-linecap="round" pathLength="1" class="draw"/>
+    <circle cx="${L[0]}" cy="${L[1]}" r="6" fill="#171B28" stroke="#F18D74" stroke-width="2" class="pop" style="animation-delay:1.5s"/>${dots}${lab}</svg>`}
+function spikes(vals,warn,labels,label){const W=300,H=140,B=H-22,mx=Math.max(1,...vals),n=vals.length,gap=(W-10)/n;
+  let s='',lab='';vals.forEach((v,i)=>{const x=6+i*gap+gap/2,hgt=Math.max(4,v/mx*(B-10));
+    const bw=Math.max(2,Math.min(8,gap*.22));s+=`<rect x="${(x-bw/2).toFixed(1)}" y="${(B-hgt).toFixed(1)}" width="${bw.toFixed(1)}" height="${hgt.toFixed(1)}" rx="${(bw/2).toFixed(1)}" fill="${warn(i)?'#F18D74':'url(#sp'+gid+')'}" class="grow" style="animation-delay:${i*22}ms"><title>${label(i)}</title></rect>
+      <circle cx="${x.toFixed(1)}" cy="${(B-hgt).toFixed(1)}" r="1.8" fill="${warn(i)?'#F18D74':'#8fb0ff'}" class="pop" style="animation-delay:${.5+i*.02}s"/>`;
+    if(labels&&labels[i])lab+=`<text x="${x}" y="${H-2}" text-anchor="middle" class="axl">${labels[i]}</text>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${label('all')}"><defs><linearGradient id="sp${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fb0ff"/><stop offset="1" stop-color="#3B72ED" stop-opacity=".15"/></linearGradient></defs>${s}${lab}</svg>`}
+function dotLine(vals,labels,max){const W=300,H=130,B=H-24,mx=max||Math.max(1,...vals),X=i=>10+i*(W-20)/(vals.length-1),Y=v=>B-v/mx*(B-16);
+  const P=vals.map((v,i)=>[X(i),Y(v)]),d=smooth(P),id='dl'+(++gid);
+  let c='',lab='',vl='';P.forEach(([x,y],i)=>{c+=`<circle cx="${x}" cy="${y}" r="3.6" fill="#171B28" stroke="#5D8BFF" stroke-width="2" class="pop" style="animation-delay:${.6+i*.08}s"><title>${labels[i]}: ${vals[i]}%</title></circle>`;
+    vl+=`<line x1="${x}" x2="${x}" y1="${y}" y2="${B}" stroke="rgba(93,139,255,.18)" stroke-dasharray="2 3"/>`;
+    lab+=`<text x="${x}" y="${H-4}" text-anchor="middle" class="axl">${labels[i]}</text>`});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Resolution rate by 4-hour block"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B72ED" stop-opacity=".28"/><stop offset="1" stop-color="#3B72ED" stop-opacity="0"/></linearGradient></defs>
+    ${vl}<path d="${d} L${P[P.length-1][0]},${B} L${P[0][0]},${B}Z" fill="url(#${id})" class="fadein"/><path d="${d}" fill="none" stroke="#5D8BFF" stroke-width="2" pathLength="1" class="draw"/>${c}${lab}</svg>`}
+function hatchBars(vals,labels,hi,tagFmt){return h('div',{class:'hb'},...vals.map((v,i)=>{const mx=Math.max(...vals)*1.1;
+  return h('div',{class:'hbc'+(i===hi?' on':''),style:`--h:${Math.round(v/mx*100)}%;--i:${i}`,title:`${labels[i]}: ${tagFmt(v)}`},i===hi?h('span',{class:'tag'},tagFmt(v)):'',h('div',{class:'hbb'}),h('small',{},labels[i]))}))}
+function ringSvg(p,warn,i){const C=2*Math.PI*50;return `<svg viewBox="0 0 112 112" aria-hidden="true"><circle cx="56" cy="56" r="50" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5"/>
+  <circle cx="56" cy="56" r="50" fill="none" stroke="${warn?'#F18D74':'#5D8BFF'}" stroke-width="5" stroke-linecap="round" class="arc" style="--d:${(p/100*C).toFixed(1)};--i:${i}"/></svg>`}
+
+/* count-up for anything marked data-to */
+function counts(root){root.querySelectorAll('[data-to]').forEach(el=>{const to=+el.dataset.to,dec=+(el.dataset.dec||0);
+  if(calm()){el.textContent=to.toFixed(dec);return}const t0=performance.now(),d=1100;
+  const st=n=>{const p=Math.min(1,(n-t0)/d);el.textContent=(to*(1-Math.pow(1-p,3))).toFixed(dec);if(p<1)requestAnimationFrame(st)};requestAnimationFrame(st)})}
+const cnt=(v,dec=0)=>h('span',{class:'tab','data-to':v,'data-dec':dec},'0');
+function cardHead(title,sub,subCls,...btns){return h('div',{class:'ch'},h('div',{class:'t'},h('h3',{},title),h('span',{class:'s '+(subCls||'')},sub)),...btns)}
+
+/* ---------- screens ---------- */
+const V={};
+V.overview=()=>{
+  const al=ALS(),open=al.filter(isOpen),crit=open.filter(a=>a.sev==='Critical'),act=activity(T.loc==='all'?undefined:T.loc);
+  const ds=DEVS().map(d=>({d,...devState(d)})),healthy=ds.filter(x=>x.st==='Healthy').length,hp=ds.reduce((a,x)=>a+x.hp,0)/ds.length;
+  const sys=sysIn().sort((a,b)=>b.A.open.length-a.A.open.length),top=sys[0];
+  const status=crit.length?'Needs attention':open.length?'Under watch':'All clear';
+  /* 1 · open alarms */
+  const big=h('section',{class:'card big rise',style:'--i:0'},
+    cardHead('Open alarms',status,crit.length?'w':'b',ib('refresh','Refresh',e=>{e.currentTarget.animate([{transform:'rotate(0)'},{transform:'rotate(360deg)'}],{duration:700,easing:'cubic-bezier(.2,.7,.2,1)'});render(0)}),ib('chevR','Open alarms',()=>go('alarms'))),
+    h('div',{class:'row2'},h('div',{class:'huge'},cnt(open.length),h('sup',{},'open')),h('div',{style:'padding-bottom:10px'},h('span',{class:'disc'+(crit.length?' w':''),html:ic('bell')}))),
+    h('div',{class:'upd'},`${al.length-open.length} resolved · ${open.filter(a=>a.st==='Ack').length} acknowledged`,h('br'),'Updated just now'),
+    h('div',{class:'chart',style:'margin-top:auto',html:bigLine(act.raised,act.labels)}),
+    h('div',{class:'acts'},h('button',{class:'pill primary',type:'button',on:{click:()=>go('alarms')}},'Review alarms'),h('button',{class:'pill',type:'button',on:{click:()=>go('systems')}},'By system')),
+    h('div',{class:'ai'},h('div',{},h('b',{},'Most affected · '+top.Y.n),h('small',{},`${top.A.open.length} open alarms · ${top.A.hp}% health`)),ib('spark','Open '+top.Y.n,()=>sysDrawer(top.Y.k))));
+  /* 2 · device health */
+  const hcard=h('section',{class:'card rise click',style:'--i:1',on:{click:()=>go('devices')}},
+    cardHead('Device health',hp>=90?'Excellent':hp>=80?'Moderate':'Needs attention',hp<80?'w':'',ib('sliders','Devices',()=>go('devices')),ib('chevR','Devices',()=>go('devices'))),
+    h('div',{class:'val'},h('span',{class:'disc',html:ic('chip')}),h('span',{class:'num'},cnt(hp,1),h('sup',{},'%'))),
+    h('div',{class:'chart',html:spikes(sys.map(s=>s.A.hp),i=>sys[i].A.hp<80,null,i=>i==='all'?'Health per system':`${sys[i].Y.n}: ${sys[i].A.hp}%`)}),
+    h('div',{class:'muted',style:'font-size:12px;margin-top:6px'},`${fmt(healthy)} of ${fmt(ds.length)} healthy · one line per system`));
+  /* 3 · response */
+  const R=rng('ack'+T.loc),ack=T.loc==='all'?ACK7:ACK7.map(v=>Math.max(20,Math.round(v+(R()-.5)*16)));
+  const rcard=h('section',{class:'card rise click',style:'--i:2',on:{click:()=>go('insights')}},
+    cardHead('Response time',ack[6]<=ack[5]?'Improving':'Normal','',ib('chevR','Insights',()=>go('insights'))),
+    h('div',{class:'val'},h('span',{class:'disc',html:ic('clock')}),h('span',{class:'num'},cnt(ack[6]),h('small',{},'s'))),
+    hatchBars(ack,DAYS,6,v=>v+' s'));
+  /* 4 · resolution */
+  const blocks=[...Array(6)].map((_,b)=>{const r=act.raised.slice(b*4,b*4+4).reduce((a,c)=>a+c,0),s=act.resolved.slice(b*4,b*4+4).reduce((a,c)=>a+c,0);return Math.min(100,Math.round(s/Math.max(1,r)*100))});
+  const rate=Math.round((al.length-open.length)/Math.max(1,al.length)*100),word=rate>=70?'Good':rate>=50?'Fair':'Low';
+  const qcard=h('section',{class:'card rise click',style:'--i:3',on:{click:()=>go('insights')}},
+    cardHead('Resolution',rate>=70?'Within normal':rate>=50?'Below target':'Behind target',rate<50?'w':'',ib('chevR','Insights',()=>go('insights'))),
+    h('div',{class:'val'},h('span',{class:'disc',html:ic('check')}),h('span',{class:'num'},word),h('span',{class:'muted',style:'font-size:14px'},rate+'% resolved')),
+    h('div',{class:'chart',html:dotLine(blocks,[0,4,8,12,16,20].map(i=>act.labels[i].slice(0,5)),100)}));
+  /* 5 · critical */
+  const critH=act.labels.map((_,i)=>al.filter(a=>(a.sev==='Critical'||a.sev==='High')&&a.ts>=BUCKETS[i]&&a.ts<BUCKETS[i]+HR).length);
+  const critC=act.labels.map((_,i)=>al.some(a=>a.sev==='Critical'&&a.ts>=BUCKETS[i]&&a.ts<BUCKETS[i]+HR));
+  const avgC=LOCS.reduce((a,L)=>a+ALM.filter(x=>x.loc===L.id&&isOpen(x)&&x.sev==='Critical').length,0)/LOCS.length;
+  const above=T.loc==='all'?crit.length>8:crit.length>avgC;
+  const ccard=h('section',{class:'card rise click',style:'--i:4',on:{click:()=>{T.sev='Critical';go('alarms')}}},
+    cardHead('Critical alarms',above?'Above average':'Within normal',above?'w':'',ib('sliders','Filter critical',()=>{T.sev='Critical';go('alarms')}),ib('chevR','Critical alarms',()=>{T.sev='Critical';go('alarms')})),
+    h('div',{class:'val'},h('span',{class:'disc w',html:ic('alert')}),h('span',{class:'num'},cnt(crit.length),h('small',{},'open'))),
+    h('div',{class:'chart',html:spikes(critH,i=>critC[i],act.labels.map((l,i)=>i%8===0||i===23?l.slice(0,5):''),i=>i==='all'?'Critical and high alarms per hour':`${act.labels[i]}: ${critH[i]} raised`)}));
+  return[h('div',{class:'ov'},big,hcard,rcard,qcard,ccard)]};
+
+V.alarms=()=>{
+  const open=ALS().filter(isOpen),fl=open.filter(a=>T.sev==='all'||a.sev===T.sev).filter(a=>T.showAck||a.st!=='Ack');
+  const counts_={all:open.length};SEVS.forEach(s=>counts_[s]=open.filter(a=>a.sev===s).length);
+  const area=h('div',{class:'swap'});
+  const paint=()=>{area.innerHTML='';area.append(...alarmBody())};
+  const seg=segment([['all','All'],...SEVS.map(s=>[s,s])].map(([v,l])=>[v,l,counts_[v]]),T.sev,v=>{T.sev=v;swap(area,paint)});
+  function alarmBody(){
+    const list=open.filter(a=>T.sev==='all'||a.sev===T.sev).filter(a=>T.showAck||a.st!=='Ack');
+    const by=sysIn().map(({Y})=>({Y,n:list.filter(a=>a.sys===Y.k).length,c:list.filter(a=>a.sys===Y.k&&a.sev==='Critical').length})).filter(x=>x.n).sort((a,b)=>b.n-a.n||b.c-a.c).slice(0,6);
+    const mx=Math.max(1,...by.map(x=>x.n)),avg=by.length?by.reduce((a,x)=>a+x.n,0)/by.length:0;
+    const cols=h('div',{class:'cols'},h('div',{class:'avg',style:`bottom:${(avg/mx*62).toFixed(1)}%`},h('span',{},'Average')),
+      ...by.map((x,i)=>h('div',{class:'col'+(x.c?' w':''),style:`--i:${i};--h:${Math.max(8,x.n/mx*62)}%`,role:'button',tabindex:'0','aria-label':`${x.Y.n}: ${x.n} open`,
+        on:{click:()=>sysDrawer(x.Y.k),keydown:e=>{if(e.key==='Enter')sysDrawer(x.Y.k)}}},
+        h('h4',{},x.Y.n),h('span',{class:'st'+(x.c?' w':'')},x.c?`${x.c} critical`:'Stable'),
+        h('div',{class:'stem'},h('span',{class:'vp'},x.n+' open'),h('span',{class:'ln'}),h('div',{class:'bar'},x.c?h('span',{class:'crit',style:`--c:${Math.round(x.c/x.n*100)}%`},x.c>1?'+'+x.c:''):'')))));
+    if(!by.length)cols.append(h('p',{class:'muted',style:'margin:auto'},'No open alarms for this filter'));
+    const sorted=[...list].sort((a,b)=>T.critFirst?(SEVR[b.sev]-SEVR[a.sev])||(b.ts-a.ts):b.ts-a.ts);
+    const L=h('section',{class:'card list rise',style:'--i:2'},h('div',{class:'lh'},h('h3',{},`${sorted.length} open alarm${sorted.length===1?'':'s'}`),h('span',{class:'tagp b'},scopeName())),
+      ...sorted.slice(0,40).map((a,i)=>alarmRow(a,i)));
+    return[cols,L]}
+  const offline=DEVS().filter(d=>devState(d).st==='Offline').length;
+  const tg=(label,key,sub)=>{const b=h('button',{class:'sw',type:'button',role:'switch','aria-checked':T[key],'aria-label':label});
+    b.onclick=()=>{T[key]=!T[key];b.setAttribute('aria-checked',T[key]);swap(area,paint)};return h('section',{class:'card'},h('div',{class:'mini'},h('span',{class:'disc',html:ic(key==='showAck'?'check':'alert')}),h('div',{},h('b',{},label),h('small',{},sub))),h('div',{class:'srow'},h('span',{class:'muted',style:'flex:1;font-size:13px'},'On / off'),b))};
+  const main=h('section',{class:'card comp-main rise',style:'--i:0'},
+    h('div',{class:'comp-top'},seg,h('span',{class:'mid'},'Open alarms by system · tap a column'),ib('spark','Most affected system',()=>{const t=sysIn().sort((a,b)=>b.A.open.length-a.A.open.length)[0];sysDrawer(t.Y.k)})),
+    area,
+    h('div',{class:'comp-foot'},h('button',{class:'pill',type:'button',html:ic('grid')+'<span>System view</span>',on:{click:()=>go('systems')}}),h('button',{class:'pill',type:'button',html:ic('dev')+'<span>Device view</span>',on:{click:()=>go('devices')}}),
+      h('span',{class:'upd'},'Updated',h('br'),'just now')));
+  const side=h('div',{class:'side rise fromR',style:'--i:1'},
+    h('section',{class:'card click',on:{click:()=>go('devices')}},h('div',{class:'mini'},h('span',{class:'disc'+(offline?' w':''),html:ic('dev')}),h('div',{style:'flex:1'},h('b',{},'Devices'),h('small',{},offline?`${offline} offline`:'All online'))),h('div',{class:'srow'},h('span',{class:'muted',style:'flex:1;font-size:13px'},`${fmt(DEVS().length)} monitored`),ib('chevR','Devices',()=>go('devices')))),
+    tg('Show acknowledged','showAck','Include alarms already picked up'),
+    tg('Critical first','critFirst','Sort the list by severity'));
+  const wrap=h('div',{});wrap.append(h('div',{class:'comp'},main,side));
+  paint();
+  return[wrap]};
+
+function alarmRow(a,i){const L=LOC[a.loc];
+  return h('button',{class:'li',type:'button',style:`--i:${i}`,on:{click:()=>alarmDrawer(a)}},
+    h('span',{class:'sv',style:`background:${SEVBG[a.sev]};color:${SEVK[a.sev]}`},a.sev[0]),
+    h('b',{},a.t),h('span',{class:'r'},hhmm(a.ts),h('em',{},h('span',{class:'tagp'+(a.st==='Active'?' w':' b')},a.st==='Ack'?'Acknowledged':'Active'))),
+    h('span',{},`${SYSM[a.sys].n} · ${a.dev} · ${L.short}`))}
+
+V.systems=()=>{
+  const area=h('div',{class:'swap'});
+  const items=()=>sysIn().filter(({Y})=>T.grp==='all'||Y.g===T.grp);
+  const paint=()=>{area.innerHTML='';area.append(h('div',{class:'sysg'},...items().map(({Y,A},i)=>{const w=A.open.some(a=>a.sev==='Critical')||A.hp<75,o=A.open.length;
+    return h('section',{class:'card syc click rise'+(w?' w':''),style:`--i:${i}`,role:'button',tabindex:'0','aria-label':`${Y.n}, ${A.hp}% health, ${o} open alarms`,on:{click:()=>sysDrawer(Y.k),keydown:e=>{if(e.key==='Enter')sysDrawer(Y.k)}}},
+      h('div',{class:'ringw',html:ringSvg(A.hp,w,i)},h('span',{class:'g'},Y.ic)),
+      h('div',{class:'bt'},h('div',{},h('b',{},Y.n),h('small',{},`${A.hp}% · ${A.devs.length} devices`)),h('span',{class:'tagp'+(o?(w?' w':' b'):'')},o?o+' open':'OK')))})))};
+  const seg=segment(GRP.map(([k,l])=>[k,l,sysIn().filter(({Y})=>k==='all'||Y.g===k).length]),T.grp,v=>{T.grp=v;swap(area,paint)});
+  paint();
+  return[h('div',{class:'rise',style:'--i:0'},seg),area]};
+
+V.devices=()=>{
+  const S=sysIn().sort((a,b)=>a.A.hp-b.A.hp);if(!T.dsys||!S.some(x=>x.Y.k===T.dsys))T.dsys=S[0].Y.k;
+  const FL=[['All devices',()=>true],['Needs attention',x=>x.st!=='Healthy'],['Healthy',x=>x.st==='Healthy']];
+  const wrap=h('div',{});let ro=null;
+  const paint=(dirSys)=>{wrap.innerHTML='';if(ro)ro.disconnect();
+    const cur=S.find(x=>x.Y.k===T.dsys),si=S.indexOf(cur),devs=cur.A.devs.filter(FL[T.dflt][1]).sort((a,b)=>a.hp-b.hp||a.d.id.localeCompare(b.d.id));
+    const healthy=cur.A.devs.filter(x=>x.st==='Healthy').length,bad=cur.A.devs.length-healthy;
+    const cyc=(dir,fn)=>()=>{fn(dir);paint(dir)};
+    const modeSys=h('section',{class:'card mode rise fromL',style:'--i:0'},ib('chevL','Previous system',cyc(-1,d=>T.dsys=S[(si-1+S.length)%S.length].Y.k),'ib l'),
+      h('span',{class:'disc',html:ic('grid')}),h('b',{class:'lbl'},cur.Y.n),h('small',{},`System ${si+1} of ${S.length}`),ib('chevR','Next system',cyc(1,d=>T.dsys=S[(si+1)%S.length].Y.k),'ib r'));
+    const modeF=h('section',{class:'card mode rise fromL',style:'--i:1'},ib('chevL','Previous filter',cyc(-1,()=>T.dflt=(T.dflt+2)%3),'ib l'),
+      h('span',{class:'disc',html:ic('sliders')}),h('b',{class:'lbl'},FL[T.dflt][0]),h('small',{},`${devs.length} shown`),ib('chevR','Next filter',cyc(1,()=>T.dflt=(T.dflt+1)%3),'ib r'));
+    const center=h('section',{class:'card center rise',style:'--i:0'},h('span',{class:'cap'},`Average health · ${cur.Y.n}`),
+      h('div',{class:'huge',style:'margin-top:10px'},cnt(cur.A.hp),h('sup',{},'%')),
+      h('span',{class:'disc'+(cur.A.hp<80?' w':''),style:'margin-top:14px',html:ic('heart')}),
+      h('div',{class:'note'},`${healthy} of ${cur.A.devs.length} healthy · ${cur.A.open.length} open alarms`));
+    const hist=[0,0,0,0,0];cur.A.devs.forEach(x=>hist[x.hp>=95?4:x.hp>=85?3:x.hp>=65?2:x.hp>0?1:0]++);
+    const right=h('div',{class:'side rise fromR',style:'--i:1'},
+      h('section',{class:'card'},h('div',{class:'mini'},h('span',{class:'disc'+(bad?' w':''),html:ic('alert')}),h('div',{},h('b',{},bad?`${bad} need attention`:'All healthy'),h('small',{},cur.A.devs.filter(x=>x.st==='Offline').length+' offline'))),
+        h('div',{class:'srow'},h('span',{class:'muted',style:'flex:1;font-size:13px'},'Open system'),ib('chevR','Open '+cur.Y.n,()=>sysDrawer(cur.Y.k)))),
+      h('section',{class:'card'},h('div',{class:'mini'},h('div',{},h('b',{},'Health spread'),h('small',{},'Offline → excellent'))),
+        h('div',{class:'chart',style:'margin-top:6px',html:spikes(hist,i=>i<2,['Off','<65','<85','<95','95+'],i=>i==='all'?'Devices by health band':`${hist[i]} devices`)})));
+    /* scrubber */
+    const n=devs.length,ticks=h('div',{class:'ticks'},...devs.map((x,i)=>h('i',{class:x.st!=='Healthy'?'w':'',style:`--h:${Math.max(16,x.hp)}%;--i:${i}`})));
+    const knob=h('div',{class:'knob',role:'slider',tabindex:'0','aria-label':'Choose a device','aria-valuemin':1,'aria-valuemax':Math.max(1,n),html:'<svg class="ico" viewBox="0 0 24 24" style="width:18px;height:18px"><path d="m9 7-4 5 4 5M15 7l4 5-4 5"/></svg>'});
+    const lab=h('div',{class:'klabel'});
+    const sc=h('section',{class:'card scrub rise',style:'--i:2'},lab,ticks,knob);
+    let idx=Math.min(n-1,Math.round(T.dpos*(n-1)));
+    const place=(anim)=>{if(!n){lab.textContent='No devices for this filter';knob.style.display='none';return}
+      const r=ticks.getBoundingClientRect(),sr=sc.getBoundingClientRect(),x=r.left-sr.left+(n===1?r.width/2:idx/(n-1)*r.width);
+      knob.classList.toggle('anim',!!anim);knob.style.left=x+'px';lab.style.left=Math.min(sr.width-90,Math.max(90,x))+'px';
+      const x_=devs[idx];lab.innerHTML=`<b>${x_.d.id}</b> <span>· ${x_.st} · ${x_.hp}%</span>`;knob.setAttribute('aria-valuenow',idx+1);knob.setAttribute('aria-valuetext',`${x_.d.id}, ${x_.st}`);
+      [...ticks.children].forEach((t,i)=>t.classList.toggle('near',Math.abs(i-idx)<=2));T.dpos=n>1?idx/(n-1):.5};
+    const fromX=cx=>{const r=ticks.getBoundingClientRect();idx=Math.round(Math.min(1,Math.max(0,(cx-r.left)/r.width))*(n-1));place()};
+    sc.addEventListener('pointerdown',e=>{if(!n||e.target.closest('.scrub-foot'))return;sc.setPointerCapture(e.pointerId);fromX(e.clientX);const mv=ev=>fromX(ev.clientX),up=()=>{sc.removeEventListener('pointermove',mv);sc.removeEventListener('pointerup',up)};sc.addEventListener('pointermove',mv);sc.addEventListener('pointerup',up)});
+    knob.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowUp'){idx=Math.min(n-1,idx+1);place();e.preventDefault()}else if(e.key==='ArrowLeft'||e.key==='ArrowDown'){idx=Math.max(0,idx-1);place();e.preventDefault()}else if(e.key==='Enter'&&n)devDrawer(devs[idx].d)});
+    requestAnimationFrame(()=>requestAnimationFrame(()=>place(true)));
+    ro=new ResizeObserver(()=>place());ro.observe(sc);
+    const foot=h('div',{class:'scrub-foot'},h('button',{class:'pill',type:'button',html:ic('grid')+'<span>System details</span>',on:{click:()=>sysDrawer(cur.Y.k)}}),
+      h('button',{class:'pill primary',type:'button',on:{click:()=>{if(n)devDrawer(devs[idx].d)}}},'Open device'),
+      h('span',{class:'muted',style:'font-size:12px'},'Drag the dial or use arrow keys'));
+    sc.append(foot);
+    const need=cur.A.devs.filter(x=>x.st!=='Healthy').sort((a,b)=>a.hp-b.hp);
+    const L=h('section',{class:'card list rise',style:'--i:3'},h('div',{class:'lh'},h('h3',{},need.length?'Needs attention':'Every device healthy'),h('span',{class:'tagp b'},cur.Y.n)),
+      ...need.slice(0,20).map((x,i)=>h('button',{class:'li',type:'button',style:`--i:${i}`,on:{click:()=>devDrawer(x.d)}},
+        h('span',{class:'sv',style:`background:${x.st==='Healthy'?SEVBG.Medium:SEVBG.Critical};color:${STC[x.st]}`},x.hp),h('b',{},x.d.id),h('span',{class:'r'},x.st),h('span',{},`${x.d.model} · ${LOC[x.d.loc].short} · ${x.d.zone}`))));
+    wrap.append(h('div',{class:'devw'},h('div',{class:'side'},modeSys,modeF),center,right),sc,L);
+    if(dirSys)wrap.querySelectorAll('.lbl').forEach(e=>e.animate([{opacity:0,transform:`translateX(${dirSys*16}px)`},{opacity:1,transform:'none'}],{duration:calm()?1:380,easing:'cubic-bezier(.2,.7,.2,1)'}));
+    counts(wrap)};
+  paint();
+  return[wrap]};
+
+V.insights=()=>{
+  const start=NOW-24*HR,al=ALS().filter(a=>a.ts>=start&&(a.sev==='Critical'||a.sev==='High')).sort((a,b)=>b.ts-a.ts).slice(0,6).sort((a,b)=>a.ts-b.ts);
+  const first=al.length?Math.min(...al.map(a=>a.ts)):NOW-6*HR,span=Math.max(3*HR,(NOW-first)*1.12),w0=NOW-span,blk=span/6;
+  const pos=t=>Math.min(100,Math.max(0,(t-w0)/span*100));
+  const hdr=h('div',{class:'gh'},...[0,1,2,3,4,5].map(i=>h('span',{},`${hhmm(w0+i*blk)}–${hhmm(w0+(i+1)*blk)}`)));
+  const rows=h('div',{class:'gb'},...al.map((a,i)=>{const s=pos(a.ts),endT=RESOLVED_AT.get(a.id)||NOW,e=Math.max(s+2.5,pos(endT)),open=isOpen(a);
+    const b=h('button',{class:'gbar'+(open?' open':'')+(a.sev==='Critical'?' crit':''),type:'button',style:`left:${s}%;width:${e-s}%;--i:${i};--a:${open?Math.min(100,Math.max(18,(a.st==='Ack'?55:25))):100}%`,title:`${a.t} · ${LOC[a.loc].short}`,on:{click:()=>alarmDrawer(a)}},
+      e-s>=22?h('span',{},`${a.t} · ${LOC[a.loc].short}`):'',open&&i===al.length-1?h('span',{class:'bub'},'Current status'):'');
+    const lbl=e-s<22?h('span',{class:'gl',style:s>40?`right:calc(${100-s}% + 12px)`:`left:calc(${e}% + 12px);text-align:left`},a.t,h('small',{},`${LOC[a.loc].short} · ${hhmm(a.ts)}`)):'';
+    return h('div',{class:'grow2'},lbl,b)}));
+  if(!al.length)rows.append(h('p',{class:'muted',style:'padding:20px'},'No critical or high alarms in the last 24 hours.'));
+  const gantt=h('section',{class:'card gantt rise',style:'--i:0'},cardHead('Incident timeline','Latest critical and high alarms · solid = resolved, hatched = still open','',ib('chevR','Alarms',()=>go('alarms'))),hdr,rows);
+  const locs=LOCS.map(L=>({L,s:locStat(L.id)}));const mo=Math.max(...locs.map(x=>x.s.open));
+  const cmp=h('section',{class:'card rise',style:'--i:1'},cardHead('Sites compared','Open alarms and device health','b'),
+    h('div',{style:'margin-top:14px'},...locs.map(({L,s},i)=>h('button',{class:'lr'+(s.sev.Critical>2?' w':'')+(T.loc===L.id?' on':''),type:'button',style:`--i:${i}`,on:{click:()=>setLoc(L.id)}},
+      h('span',{},L.short),h('div',{class:'tr'},h('i',{style:`--w:${Math.max(4,s.open/mo*100)}%`})),h('b',{},s.open)))),
+    h('div',{style:'margin-top:16px;border-top:1px solid var(--line);padding-top:8px'},...locs.map(({L,s},i)=>h('div',{class:'lr'+(s.hp<85?' w':''),style:`--i:${i+5}`},h('span',{class:'muted'},L.short+' health'),h('div',{class:'tr'},h('i',{style:`--w:${s.hp}%`})),h('b',{},s.hp+'%')))));
+  const act=activity(T.loc==='all'?undefined:T.loc),pk=act.raised.indexOf(Math.max(...act.raised));
+  const busy=h('section',{class:'card rise',style:'--i:2'},cardHead('Busiest hour',`${act.labels[pk]} · ${act.raised[pk]} alarms raised`,'w'),
+    h('div',{class:'val'},h('span',{class:'disc w',html:ic('clock')}),h('span',{class:'num'},act.labels[pk])),
+    h('div',{class:'chart',html:spikes(act.raised,i=>i===pk,act.labels.map((l,i)=>i%6===0?l.slice(0,5):''),i=>i==='all'?'Alarms raised per hour':`${act.labels[i]}: ${act.raised[i]}`)}),
+    h('div',{class:'muted',style:'font-size:13px;margin-top:10px'},`${act.raised.reduce((a,b)=>a+b,0)} raised · ${act.resolved.reduce((a,b)=>a+b,0)} resolved in ${scopeName()}`));
+  return[gantt,h('div',{class:'ins2'},cmp,busy)]};
+
+/* ---------- segmented sub-menu with sliding thumb ---------- */
+function segment(opts,val,onChange){const el=h('div',{class:'seg',role:'group'}),ind=h('span',{class:'seg-ind'});el.append(ind);
+  const btns=opts.map(([v,l,n])=>{const b=h('button',{type:'button','aria-pressed':v===val},l,n!=null?h('span',{class:'n'},n):'');
+    b.onclick=()=>{if(b.getAttribute('aria-pressed')==='true')return;btns.forEach(x=>x.setAttribute('aria-pressed',x===b));move(b);onChange(v)};return b});
+  el.append(...btns);
+  const move=b=>{ind.style.width=b.offsetWidth+'px';ind.style.transform=`translateX(${b.offsetLeft}px)`};
+  requestAnimationFrame(()=>{const b=btns.find(x=>x.getAttribute('aria-pressed')==='true');if(b){ind.style.transition='none';move(b);requestAnimationFrame(()=>ind.style.transition='')}});
+  new ResizeObserver(()=>{const b=btns.find(x=>x.getAttribute('aria-pressed')==='true');if(b)move(b)}).observe(el);
+  return el}
+function swap(el,paint){if(calm()){paint();counts(el);return}el.classList.add('out');setTimeout(()=>{paint();counts(el);el.classList.remove('out')},180)}
+
+/* ---------- drawers ---------- */
+const drawer=$('#drawer'),scrim=$('#scrim');let lastFocus=null;
+function openDrawer(title,sub,body,tag){apOpen=false;drawer.classList.remove('ap');if(!drawer.classList.contains('show'))lastFocus=document.activeElement;drawer.innerHTML='';
+  drawer.append(h('div',{class:'dh'},h('div',{class:'t'},tag||'',h('h3',{id:'dttl'},title),h('p',{},sub)),ib('x','Close',closeDrawer)),h('div',{class:'db'},...body.map((b,i)=>{if(b&&b.style)b.style.setProperty('--i',i);return b})));
+  drawer.classList.add('show');scrim.classList.add('show');setTimeout(()=>drawer.focus(),60);counts(drawer)}
+function closeDrawer(){drawer.classList.remove('show');scrim.classList.remove('show');if(lastFocus&&lastFocus.focus)lastFocus.focus()}
+scrim.onclick=()=>closeDrawer();
+function alarmDrawer(a){const L=LOC[a.loc],Y=SYSM[a.sys],d=DEVBY[a.dev];
+  openDrawer(a.t,`${Y.n} · ${L.short} · ${ago(a.ts)}`,[
+    h('div',{class:'msg'+(a.sev==='Critical'?' w':'')},a.m),
+    h('div',{class:'kv'},...[['Severity',a.sev],['Status',a.st==='Ack'?'Acknowledged':a.st],['Device',a.dev],['Raised',hhmm(a.ts)],['Zone',d?d.zone:'–'],['Alarm ID',a.id]].map(([k,v])=>h('div',{},h('small',{},k),h('b',{},v)))),
+    h('div',{class:'dsec'},'First-line checks'),
+    h('div',{},...(CHK[a.sys]||[]).map(c=>{const b=h('button',{class:'chk',type:'button','aria-pressed':'false'},h('i'),h('span',{},c));b.onclick=()=>b.setAttribute('aria-pressed',b.getAttribute('aria-pressed')!=='true');return b})),
+    h('div',{style:'display:flex;gap:8px;margin-top:18px;flex-wrap:wrap'},h('button',{class:'pill primary',type:'button',on:{click:()=>sysDrawer(a.sys)}},'Open '+Y.n),d?h('button',{class:'pill',type:'button',on:{click:()=>devDrawer(d)}},'Device details'):'')],
+    h('span',{class:'tagp '+(a.sev==='Critical'||a.sev==='High'?'w':'b'),style:'margin-bottom:8px'},a.sev))}
+function sysDrawer(k){const Y=SYSM[k],A=sysAgg(k,T.loc==='all'?'all':T.loc),bad=A.devs.filter(x=>x.st!=='Healthy').sort((a,b)=>a.hp-b.hp);
+  openDrawer(Y.n,`${GROUPS[Y.g].k} · ${scopeName()}`,[
+    h('div',{style:'display:flex;align-items:center;gap:18px;margin-top:4px'},h('div',{class:'huge',style:'font-size:84px'},cnt(A.hp),h('sup',{},'%')),h('div',{class:'muted',style:'font-size:14px;line-height:1.6'},`${A.devs.length} devices`,h('br'),`${bad.length} need attention`,h('br'),`${A.open.length} open alarms`)),
+    h('div',{class:'dsec'},A.open.length?'Open alarms':'No open alarms'),
+    h('div',{},...A.open.sort((a,b)=>SEVR[b.sev]-SEVR[a.sev]).map((a,i)=>alarmRow(a,i))),
+    h('div',{class:'dsec'},'Devices'),
+    h('div',{},...[...bad,...A.devs.filter(x=>x.st==='Healthy')].slice(0,40).map(x=>h('button',{class:'dev',type:'button',on:{click:()=>devDrawer(x.d)}},h('i',{style:`background:${STC[x.st]}`}),h('div',{},h('b',{},x.d.id),h('span',{},` ${x.d.model} · ${LOC[x.d.loc].short}`)),h('em',{},x.st==='Healthy'?x.hp+'%':x.st))))],
+    h('span',{class:'tagp b',style:'margin-bottom:8px;font-size:16px'},Y.ic))}
+function devDrawer(d){const s=devState(d);
+  openDrawer(d.id,`${d.model} · ${LOC[d.loc].short} · ${d.zone}`,[
+    h('div',{style:'display:flex;align-items:center;gap:18px;margin-top:4px'},h('div',{class:'huge',style:'font-size:84px'},cnt(s.hp),h('sup',{},'%')),h('span',{class:'tagp '+(s.st==='Healthy'?'b':'w')},s.st)),
+    h('div',{class:'kv'},...[['System',SYSM[d.sys].n],['Firmware',d.fw],['Temperature',d.temp+' °C'],['Uptime',d.up+'%'],['Heartbeat',d.hb+' s ago'],['Location',LOC[d.loc].short]].map(([k,v])=>h('div',{},h('small',{},k),h('b',{},v)))),
+    h('div',{class:'dsec'},s.al.length?'Open alarms on this device':'No open alarms on this device'),
+    h('div',{},...s.al.map((a,i)=>alarmRow(a,i)))],
+    h('span',{class:'tagp b',style:'margin-bottom:8px'},'Device'))}
+
+/* ---------- search palette ---------- */
+const pal=$('#pal'),pin=$('#pin'),pres=$('#pres');let hits=[],sel=0;
+function find(q){q=q.trim().toLowerCase();if(!q)return[];const o=[],has=s=>s.toLowerCase().includes(q);
+  TABS.forEach(([id,l])=>{if(has(l))o.push({t:'Screen',l,s:'Open '+l,go:()=>go(id)})});
+  LOCS.forEach(L=>{if(has(L.name+' '+L.short+' '+L.id))o.push({t:'Location',l:L.name,s:locStat(L.id).open+' open alarms',go:()=>setLoc(L.id)})});
+  SYS.forEach(Y=>{if(has(Y.n+' '+Y.k))o.push({t:'System',l:Y.n,s:GROUPS[Y.g].k,go:()=>sysDrawer(Y.k)})});
+  ALM.filter(isOpen).forEach(a=>{if(has(a.t+' '+a.id+' '+a.dev))o.push({t:a.sev,l:a.t+' · '+LOC[a.loc].short,s:a.m,go:()=>alarmDrawer(a)})});
+  DEV.forEach(d=>{if(has(d.id+' '+d.model))o.push({t:'Device',l:d.id,s:d.model+' · '+LOC[d.loc].short,go:()=>devDrawer(d)})});
+  return o.slice(0,9)}
+function paintPal(){pres.innerHTML='';if(!pin.value.trim()){pres.append(h('div',{class:'pno'},'Try "Terminal 3", "door forced", "video wall" or "Z1-CON-04"'));return}
+  if(!hits.length){pres.append(h('div',{class:'pno'},'Nothing found'));return}
+  hits.forEach((r,i)=>{const b=h('button',{class:'pr'+(i===sel?' on':''),type:'button'},h('small',{},r.t),h('b',{},r.l),h('span',{},r.s));b.onclick=()=>pick(i);pres.append(b)})}
+function pick(i){const r=hits[i];closePal();if(r)setTimeout(r.go,120)}
+function openPal(){pal.classList.add('show');scrim.classList.add('show');pin.value='';hits=[];paintPal();setTimeout(()=>pin.focus(),50)}
+function closePal(){pal.classList.remove('show');if(!drawer.classList.contains('show'))scrim.classList.remove('show')}
+pin.oninput=()=>{hits=find(pin.value);sel=0;paintPal()};
+pin.onkeydown=e=>{if(e.key==='ArrowDown'){sel=Math.min(hits.length-1,sel+1);paintPal();e.preventDefault()}else if(e.key==='ArrowUp'){sel=Math.max(0,sel-1);paintPal();e.preventDefault()}else if(e.key==='Enter')pick(sel)};
+scrim.addEventListener('click',closePal);
+$('#srch').onclick=openPal;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closePal();closeDrawer()}if((e.key==='/'||(e.key==='k'&&(e.metaKey||e.ctrlKey)))&&document.activeElement.tagName!=='INPUT'){e.preventDefault();openPal()}});
+
+/* ---------- parent menu: tabs with sliding indicator ---------- */
+const tabsEl=$('#tabs'),tabInd=$('#tabInd');
+TABS.forEach(([id,l])=>tabsEl.append(h('button',{class:'tb',type:'button',role:'tab','data-id':id,'aria-selected':id===T.scr},l)));
+tabsEl.addEventListener('click',e=>{const b=e.target.closest('.tb');if(b)go(b.dataset.id)});
+function moveTab(instant){const b=tabsEl.querySelector(`[data-id="${T.scr}"]`);tabsEl.querySelectorAll('.tb').forEach(x=>x.setAttribute('aria-selected',x===b));
+  if(instant)tabInd.style.transition='none';tabInd.style.width=b.offsetWidth+'px';tabInd.style.transform=`translateX(${b.offsetLeft}px)`;
+  if(instant)requestAnimationFrame(()=>tabInd.style.transition='');b.scrollIntoView({block:'nearest',inline:'nearest',behavior:calm()?'auto':'smooth'})}
+const tIdx=id=>TABS.findIndex(t=>t[0]===id);
+function go(id){if(!V[id])return;const dir=Math.sign(tIdx(id)-tIdx(T.scr));closeDrawer();closePal();
+  if(id===T.scr){render(0);return}T.scr=id;try{history.replaceState(null,'','#'+id)}catch(e){}moveTab();setTitle(TITLE[id],dir);render(dir)}
+function setTitle(t,dir){const box=$('.ptitle'),old=$('#ttl');if(old.textContent===t)return;
+  if(calm()){old.textContent=t;return}
+  const n=h('h2',{class:'pre'},t);if(dir<0){n.style.transform='translateY(-110%)'}box.append(n);
+  old.removeAttribute('id');old.classList.add('out');if(dir<0)old.style.transform='translateY(110%)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{n.classList.remove('pre');n.style.transform='';n.id='ttl'}));setTimeout(()=>old.remove(),600)}
+
+/* ---------- toolbar ---------- */
+$('#tools').append(
+  ib('sliders','Filter alarms',()=>{T.sev=T.sev==='all'?'Critical':'all';go('alarms')},'circ'),
+  h('span',{class:'pill',html:ic('cal')+'<span>Last 24 h</span>'}),
+  h('button',{class:'pill',type:'button',html:ic('pen')+'<span>Customize</span>',on:{click:()=>openAppearance()}}),
+  h('button',{class:'pill',type:'button',html:ic('frame')+'<span>Analyse</span>',on:{click:()=>go('insights')}}));
+$('#tools .circ').style.cssText='width:42px;height:42px;background:rgba(255,255,255,.04)';
+$('#kebab').onclick=()=>go('overview');$('#brand').onclick=()=>{setLoc('all');go('overview')};
+$('#bell').onclick=()=>{T.sev='Critical';go('alarms')};
+const bellN=ALM.filter(a=>isOpen(a)&&a.sev==='Critical').length;$('#bell').append(h('span',{class:'badge'},bellN));
+const clock=()=>{const d=new Date();$('#when').innerHTML=`${d.toLocaleDateString('en-GB',{month:'long',day:'numeric'})} · <b class="tab">${p2(d.getHours())}:${p2(d.getMinutes())}</b>`};clock();setInterval(clock,15e3);
+
+/* ---------- render with directional transition ---------- */
+const view=$('#view');let rendering=0;
+function render(dir){const my=++rendering;
+  const build=()=>{if(my!==rendering)return;view.classList.remove('leaving','r');view.innerHTML='';view.scrollTop=0;
+    const nodes=V[T.scr]();view.append(...nodes,h('p',{class:'foot'},'Sample data for demonstration, shared with the RAMsys Eye and RAMsys Sentrl dashboards.'));
+    if(dir)view.querySelectorAll(':scope > .rise, :scope > div > .rise').forEach(e=>{if(!e.classList.contains('fromL')&&!e.classList.contains('fromR'))e.classList.add(dir>0?'fromR':'fromL')});
+    counts(view)};
+  if(view.childElementCount&&!calm()){view.classList.add('leaving');if(dir<0)view.classList.add('r');setTimeout(build,200)}else build()}
+
+/* ---------- location chips (parent menu on the stage) ---------- */
+const chipsEl=$('#chips'),chipRow=h('div',{class:'chip-row'}),chipInd=h('span',{class:'chip-ind'});chipRow.append(chipInd);chipsEl.append(chipRow);
+[['all','All sites'],...LOCS.map(L=>[L.id,L.short])].forEach(([id,l])=>{const s=id==='all'?null:locStat(id);
+  chipRow.append(h('button',{class:'chip',type:'button','data-id':id,'aria-pressed':id===T.loc},l,s&&s.sev.Critical?h('span',{class:'dot',title:s.sev.Critical+' critical'}):''))});
+chipRow.append(h('button',{class:'chip add',type:'button','aria-label':'Add photo or video',title:'Add photo or video',html:ic('plus'),on:{click:()=>$('#file').click()}}));
+chipRow.addEventListener('click',e=>{const b=e.target.closest('.chip[data-id]');if(b)setLoc(b.dataset.id)});
+function moveChip(instant){const b=chipRow.querySelector(`[data-id="${T.loc}"]`);chipRow.querySelectorAll('.chip[data-id]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  if(instant)chipInd.style.transition='none';chipInd.style.width=b.offsetWidth+'px';chipInd.style.transform=`translateX(${b.offsetLeft}px)`;if(instant)requestAnimationFrame(()=>chipInd.style.transition='');
+  b.scrollIntoView({block:'nearest',inline:'center',behavior:calm()?'auto':'smooth'})}
+function stageTitle(){const L=T.loc==='all'?null:LOC[T.loc],s=L?locStat(L.id):null;
+  const name=L?L.short:'All sites',al=ALS(),open=al.filter(isOpen).length,crit=al.filter(a=>isOpen(a)&&a.sev==='Critical').length;
+  const box=$('#stitle');box.innerHTML='';
+  const h1=h('h1',{'aria-label':name});[...name].forEach((c,i)=>h1.append(h('span',{class:'ch',style:`--i:${i}`,'aria-hidden':'true'},c)));
+  box.append(h1,h('p',{html:ic('folder')+`<span>${L?L.air:'Demo estate · 4 terminals + Smart Command Center'}</span>`}),
+    h('div',{class:'stage-stats'},h('div',{class:'sst'+(crit?' w':'')},h('b',{},crit),h('small',{},'critical')),h('div',{class:'sst'},h('b',{},open),h('small',{},'open alarms')),h('div',{class:'sst'},h('b',{},(L?s.hp:Math.round(DEV.map(devState).reduce((a,x)=>a+x.hp,0)/DEV.length))+'%'),h('small',{},'health'))))}
+function setLoc(id){if(id===T.loc&&chipRow.dataset.ready)return;T.loc=id;moveChip();stageTitle();applyStage();render(0)}
+
+/* ==========================================================================
+   Backgrounds: up to 5 photos/videos + scenes, per location, with video speed
+   ========================================================================== */
+const SCENES={
+  oxygen:{n:'Oxygen',css:'radial-gradient(70% 55% at 30% 30%,rgba(93,139,255,.75),transparent 70%),radial-gradient(60% 50% at 80% 85%,rgba(79,91,138,.9),transparent 70%),linear-gradient(170deg,#2b4fa8,#1b2647 60%,#121628)'},
+  stratos:{n:'Stratos',css:'radial-gradient(80% 60% at 60% 20%,rgba(160,172,220,.55),transparent 70%),radial-gradient(70% 60% at 10% 90%,rgba(46,50,71,.95),transparent 70%),linear-gradient(175deg,#4F5B8A,#2E3247 65%,#171a28)'},
+  dusk:{n:'Dusk',css:'radial-gradient(60% 45% at 70% 70%,rgba(241,141,116,.6),transparent 70%),radial-gradient(70% 55% at 25% 20%,rgba(59,114,237,.55),transparent 70%),linear-gradient(180deg,#26305a,#2E3247 55%,#3a2a33)'},
+  ether:{n:'Ether',css:'radial-gradient(65% 50% at 50% 75%,rgba(241,141,116,.85),transparent 72%),radial-gradient(60% 50% at 80% 15%,rgba(255,196,170,.35),transparent 70%),linear-gradient(180deg,#5a3c48,#3a2a35 50%,#1d1620)'},
+  midnight:{n:'Midnight',css:'radial-gradient(55% 40% at 50% 25%,rgba(93,139,255,.35),transparent 70%),radial-gradient(80% 60% at 50% 110%,rgba(79,91,138,.6),transparent 70%),linear-gradient(180deg,#1a1f33,#11141D)'},
+  haze:{n:'Haze',css:'radial-gradient(70% 55% at 30% 25%,rgba(255,255,255,.55),transparent 70%),radial-gradient(70% 60% at 85% 90%,rgba(93,139,255,.55),transparent 70%),linear-gradient(170deg,#b9c3ea,#7f8cc2 55%,#4F5B8A)'}
+};
+const LOCDEF={all:'oxygen',T1:'oxygen',T2:'stratos',T3:'dusk',RGA:'ether',SCC:'midnight'};
+const AKEY='eye-aeros-settings',MAXC=5,VMAX=300*1024*1024;
+let G={def:'',per:{},customs:[],vspeed:1,dim:25,motion:'full'};
+try{Object.assign(G,JSON.parse(localStorage.getItem(AKEY)||'{}'))}catch(e){}
+if(!Array.isArray(G.customs))G.customs=[];if(typeof G.per!=='object'||!G.per)G.per={};
+const save=()=>{try{localStorage.setItem(AKEY,JSON.stringify(G))}catch(e){}};
+const URLS={};
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('eye-aeros',1);r.onupgradeneeded=()=>r.result.createObjectStore('m');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function store(mode,fn){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('m',mode),q=fn(tx.objectStore('m'));tx.oncomplete=()=>res(q&&q.result);tx.onerror=()=>rej(tx.error)})}
+const iget=k=>store('readonly',s=>s.get(k)),iset=(k,v)=>store('readwrite',s=>s.put(v,k)),idel=k=>store('readwrite',s=>s.delete(k));
+const cus=id=>G.customs.find(c=>'c:'+c.id===id);
+const valid=id=>!!(SCENES[id]||(cus(id)&&URLS[id]));
+const bgFor=loc=>[G.per[loc],G.def,LOCDEF[loc]].find(valid)||'oxygen';
+const bgName=id=>SCENES[id]?SCENES[id].n:cus(id)?(cus(id).kind==='video'?'Video ':'Photo ')+(G.customs.indexOf(cus(id))+1):'';
+let front=0,shown='';
+function applyStage(force){const id=bgFor(T.loc);document.documentElement.style.setProperty('--dim',G.dim/100);if(id===shown&&!force)return;shown=id;
+  const nxt=$('#L'+(1-front)),cur=$('#L'+front),c=cus(id);
+  nxt.innerHTML='';nxt.style.backgroundImage='';
+  if(c&&c.kind==='video'){const v=h('video',{muted:'',loop:'',playsinline:'',autoplay:''});v.muted=true;v.src=URLS[id];v.defaultPlaybackRate=v.playbackRate=G.vspeed;
+    v.addEventListener('loadedmetadata',()=>{v.playbackRate=G.vspeed});nxt.append(v);if(!document.hidden&&G.motion!=='calm')v.play().catch(()=>{})}
+  else nxt.style.backgroundImage=c?`url("${URLS[id]}")`:SCENES[id].css;
+  nxt.classList.remove('on');void nxt.offsetWidth;nxt.classList.add('on');cur.classList.remove('on');
+  setTimeout(()=>{if(!cur.classList.contains('on')){const v=cur.querySelector('video');if(v){v.pause();v.removeAttribute('src');v.load()}cur.innerHTML=''}},1000);front=1-front}
+function setSpeed(){document.querySelectorAll('#stage video').forEach(v=>{v.defaultPlaybackRate=v.playbackRate=G.vspeed})}
+document.addEventListener('visibilitychange',()=>document.querySelectorAll('#stage video').forEach(v=>document.hidden?v.pause():v.play().catch(()=>{})));
+function applyMotion(){document.documentElement.classList.toggle('calm',G.motion==='calm'||matchMedia('(prefers-reduced-motion: reduce)').matches)}
+
+async function toJpeg(file){const u=URL.createObjectURL(file);try{const im=new Image();im.src=u;await im.decode();const s=Math.min(1,2560/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+  c.width=Math.round(im.naturalWidth*s);c.height=Math.round(im.naturalHeight*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);return await new Promise(r=>c.toBlob(r,'image/jpeg',.88))}finally{URL.revokeObjectURL(u)}}
+async function addFile(f){const vid=/^video\//.test(f.type);
+  if(!vid&&!/^image\//.test(f.type)){toast('Choose an image (JPG, PNG, WebP) or a video (MP4, WebM)');return null}
+  if(G.customs.length>=MAXC){toast(`All ${MAXC} slots are used; remove one to add another`);return null}
+  let blob;if(vid){if(f.size>VMAX){toast('Video is over 300 MB');return null}if(!document.createElement('video').canPlayType(f.type)){toast('This browser cannot play that format; try MP4 (H.264) or WebM');return null}blob=f}
+  else{try{blob=await toJpeg(f)}catch(e){toast('Could not read that image');return null}}
+  const it={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),kind:vid?'video':'image'};
+  try{await iset(it.id,blob)}catch(e){toast('Not enough storage to save this file');return null}
+  G.customs.push(it);URLS['c:'+it.id]=URL.createObjectURL(blob);save();return 'c:'+it.id}
+async function addFiles(files){let last=null;for(const f of [...files]){const id=await addFile(f);if(id)last=id}
+  if(last){G.per[T.loc]=last;save();applyStage();toast(`Added to ${scopeName()} · ${G.customs.length} of ${MAXC} slots used`)}paintAp()}
+async function removeCustom(id){const c=cus(id);if(!c)return;G.customs=G.customs.filter(x=>x!==c);if(URLS[id])URL.revokeObjectURL(URLS[id]);delete URLS[id];
+  Object.keys(G.per).forEach(k=>{if(G.per[k]===id)delete G.per[k]});if(G.def===id)G.def='';save();applyStage();paintAp();try{await idel(c.id)}catch(e){}}
+$('#file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+
+/* appearance drawer */
+let apOpen=false;
+function tile(id){const c=cus(id),S=SCENES[id],on=bgFor(T.loc)===id,isDef=G.def===id;
+  const t=h('div',{class:'bgt',role:'button',tabindex:'0','aria-pressed':on,'aria-label':`${bgName(id)}: use for ${scopeName()}`,style:S?`background-image:${S.css}`:c&&c.kind==='image'?`background-image:url("${URLS[id]}")`:''});
+  if(c&&c.kind==='video'){const v=h('video',{muted:'',playsinline:'',preload:'metadata'});v.muted=true;v.src=URLS[id]+'#t=0.5';t.append(v,h('span',{class:'vt'},'VIDEO'))}
+  t.append(h('span',{class:'nm'},bgName(id)));
+  const st=h('button',{class:'star'+(isDef?' on':''),type:'button',title:isDef?'Default for every location':'Make default for every location','aria-pressed':isDef,html:ic('star')});
+  st.onclick=e=>{e.stopPropagation();G.def=isDef?'':id;if(!isDef)G.per={};save();applyStage();paintAp();toast(isDef?'Default cleared':`${bgName(id)} is now the default for every location`)};t.append(st);
+  if(c){const x=h('button',{class:'x',type:'button','aria-label':'Remove '+bgName(id)},'×');x.onclick=e=>{e.stopPropagation();removeCustom(id)};t.append(x)}
+  const use=()=>{G.per[T.loc]=id;save();applyStage();paintAp()};t.onclick=use;t.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();use()}};return t}
+function paintAp(){if(!apOpen)return;const db=drawer.querySelector('.db');if(!db)return;const y=db.scrollTop;db.innerHTML='';
+  const mine=h('div',{class:'bgs'},...G.customs.filter(c=>URLS['c:'+c.id]).map(c=>tile('c:'+c.id)));
+  if(G.customs.length<MAXC)mine.append(h('button',{class:'bgt up',type:'button',html:ic('plus')+'Add photo<br>or video',on:{click:()=>$('#file').click()}}));
+  const usedBy=id=>[['all','All sites'],...LOCS.map(L=>[L.id,L.short])].filter(([k])=>bgFor(k)===id).map(([,n])=>n);
+  const pct=Math.round(G.vspeed*100),vo=h('output',{},G.vspeed.toFixed(2)+'×'),vin=h('input',{type:'range',min:25,max:200,step:5,value:pct,'aria-label':'Video speed'});
+  vin.oninput=()=>{G.vspeed=+vin.value/100;vo.textContent=G.vspeed.toFixed(2)+'×';setSpeed()};vin.onchange=save;
+  const dout=h('output',{},G.dim+'%'),din=h('input',{type:'range',min:0,max:70,value:G.dim,'aria-label':'Darken background'});
+  din.oninput=()=>{G.dim=+din.value;dout.textContent=G.dim+'%';document.documentElement.style.setProperty('--dim',G.dim/100)};din.onchange=save;
+  const cur=bgFor(T.loc);
+  db.append(
+    h('div',{class:'dsec',style:'margin-top:4px'},`Background for ${scopeName()}`),
+    h('div',{class:'msg'},h('b',{style:'font-weight:500'},bgName(cur)),` · used by ${usedBy(cur).join(', ')}`),
+    h('div',{class:'dsec'},`Your photos and videos · ${G.customs.length} of ${MAXC}`),mine,
+    h('p',{class:'hint'},'Tap a tile to use it for the selected location. Tap ★ to make it the default for every location. Drop files onto this panel to add them.'),
+    h('div',{class:'dsec'},'Scenes'),h('div',{class:'bgs'},...Object.keys(SCENES).map(tile)),
+    h('button',{class:'pill',type:'button',style:'margin-top:12px',on:{click:()=>{G.def=cur;G.per={};save();applyStage();paintAp();toast(bgName(cur)+' now used for every location')}}},'Use '+bgName(cur)+' for every location'),
+    h('div',{class:'dsec'},'Video'),h('label',{class:'rng'},h('span',{},'Playback speed'),vo,vin),
+    segment([.25,.5,1,1.5,2].map(x=>[x,x+'×']),G.vspeed,v=>{G.vspeed=v;save();setSpeed();vin.value=v*100;vo.textContent=v.toFixed(2)+'×'}),
+    h('div',{class:'dsec'},'Readability'),h('label',{class:'rng'},h('span',{},'Darken background'),dout,din),
+    h('div',{class:'dsec'},'Animations'),segment([['full','Full'],['calm','Reduced']],G.motion,v=>{G.motion=v;save();applyMotion()}),
+    h('p',{class:'hint'},'Reduced keeps the dashboard still apart from fades. Your device’s reduce-motion setting is always respected.'),
+    h('button',{class:'pill',type:'button',style:'margin-top:18px;width:100%;justify-content:center',on:{click:()=>{Object.assign(G,{def:'',per:{},vspeed:1,dim:25,motion:'full'});save();applyMotion();setSpeed();applyStage();paintAp();toast('Appearance reset; your uploads are kept')}}},'Reset appearance'));
+  db.scrollTop=y}
+function openAppearance(){openDrawer('Appearance','Saved on this device',[]);apOpen=true;drawer.classList.add('ap');paintAp()}
+const _close=closeDrawer;closeDrawer=function(){apOpen=false;drawer.classList.remove('ap');_close()};
+$('#menu').onclick=openAppearance;$('#gear').onclick=openAppearance;
+['dragenter','dragover'].forEach(ev=>drawer.addEventListener(ev,e=>{if(apOpen){e.preventDefault();drawer.classList.add('drop')}}));
+['dragleave','drop'].forEach(ev=>drawer.addEventListener(ev,e=>{e.preventDefault();drawer.classList.remove('drop')}));
+drawer.addEventListener('drop',e=>{if(apOpen&&e.dataTransfer.files.length)addFiles(e.dataTransfer.files)});
+
+/* ripple on buttons and clickable cards */
+document.addEventListener('pointerdown',e=>{if(calm())return;const t=e.target.closest('.pill,.circ,.ib,.chip,.tb,.card.click,.li,.chk,.gbar');if(!t)return;
+  const r=t.getBoundingClientRect(),s=Math.max(r.width,r.height)*2.2,sp=h('span',{class:'rip',style:`width:${s}px;height:${s}px;left:${e.clientX-r.left-s/2}px;top:${e.clientY-r.top-s/2}px`});
+  if(getComputedStyle(t).position==='static')t.style.position='relative';if(getComputedStyle(t).overflow!=='hidden')t.style.overflow='hidden';t.append(sp);setTimeout(()=>sp.remove(),650)});
+
+/* ---------- start-up ---------- */
+applyMotion();
+const hs=(location.hash||'').slice(1);if(V[hs])T.scr=hs;
+$('#ttl').textContent=TITLE[T.scr];
+stageTitle();applyStage();render(0);
+requestAnimationFrame(()=>{moveTab(true);moveChip(true);chipRow.dataset.ready=1});
+addEventListener('resize',()=>{moveTab(true);moveChip(true)});
+(async()=>{try{for(const c of G.customs){const b=await iget(c.id);if(b)URLS['c:'+c.id]=URL.createObjectURL(b)}G.customs=G.customs.filter(c=>URLS['c:'+c.id]);applyStage();paintAp()}catch(e){}})();
+document.fonts&&document.fonts.ready.then(()=>{moveTab(true);moveChip(true)});
+
+</script>
+</body>
+</html>
