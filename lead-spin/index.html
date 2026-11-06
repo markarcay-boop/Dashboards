@@ -1113,7 +1113,6 @@ checkFont();
 setTimeout(checkFont,2500);
 applyTheme();buildBulbs();renderBrand();renderKiosk();drawWheel();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{checkFont();drawWheel();renderBrand()});
-})();
 
 /* ================= SHARED GOOGLE SHEET SYNC =================
    Every lead is also sent to one private Google Sheet (via a Google Apps Script web app),
@@ -1138,6 +1137,7 @@ async function syncLeads(){
 window.addEventListener('online',syncLeads);
 setInterval(syncLeads,30000);
 setTimeout(syncLeads,1500);
+})();
 </script>
 </body>
 </html>
