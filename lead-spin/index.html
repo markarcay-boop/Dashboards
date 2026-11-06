@@ -705,7 +705,7 @@ $('#leadForm').addEventListener('submit',e=>{
   if(dup){markDup(dup.field);showDup(dup);return}
   currentLead=Object.assign({id:uid(),ts:Date.now(),prize:'',device:st.settings.device||''},v);
   st.leads.push(currentLead);save();
-  if(!wheelSegments().length){currentLead.prize='No gifts left';save();showResult(null);return}
+  if(!wheelSegments().length){currentLead.prize='No gifts left';save();syncLeads();showResult(null);return}
   goWheel();
 });
 function resetForm(){
@@ -784,7 +784,7 @@ $('#spinBtn').addEventListener('click',()=>{
   let giftName;
   if(key==='__consol'){giftName=st.settings.consolLabel||'Thank You!';currentLead.prize='— ('+giftName+')'}
   else{const g=st.gifts.find(x=>x.id===key);g.qty--;g.given=(g.given||0)+1;giftName=g.name;currentLead.prize=g.name}
-  save();
+  save(); syncLeads();
   // find a segment index for that key
   const idxs=segsCache.map((s,i)=>s.id===key?i:-1).filter(i=>i>=0);
   const idx=idxs[Math.floor(Math.random()*idxs.length)];
@@ -1114,6 +1114,30 @@ setTimeout(checkFont,2500);
 applyTheme();buildBulbs();renderBrand();renderKiosk();drawWheel();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{checkFont();drawWheel();renderBrand()});
 })();
+
+/* ================= SHARED GOOGLE SHEET SYNC =================
+   Every lead is also sent to one private Google Sheet (via a Google Apps Script web app),
+   so sign-ups from all devices land in a single list. Leads stay saved on this device too;
+   if the internet drops, unsent leads are retried automatically. Paste the Web app URL below. */
+const SHEET_URL='https://script.google.com/macros/s/AKfycbxFbDoLcWHE4AHc9Fhmm2VMzPPqjltY68LDxt7-h5dZbbbwtR8jTaTTSpMW6PsnVsdVYw/exec';
+let syncing=false;
+function leadRow(l){const j=x=>Array.isArray(x)?x.join(', '):(x||'');
+  return {id:l.id,time:new Date(l.ts).toLocaleString('en-GB'),name:l.name,mobile:l.mobile,email:l.email,
+    city:l.city,club:l.gym,profile:j(l.profile),interest:j(l.interest),prize:l.prize,device:l.device};}
+async function syncLeads(){
+  if(!SHEET_URL||syncing||!navigator.onLine)return; syncing=true;
+  try{
+    const due=st.leads.filter(l=>!l.synced&&(l.prize||Date.now()-l.ts>120000));
+    for(const l of due){
+      try{await fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(leadRow(l))});
+          l.synced=true;save();}
+      catch(e){break}
+    }
+  }finally{syncing=false}
+}
+window.addEventListener('online',syncLeads);
+setInterval(syncLeads,30000);
+setTimeout(syncLeads,1500);
 </script>
 </body>
 </html>
