@@ -74,6 +74,7 @@ input,select{font-family:inherit}
 .field .msg{display:none;color:var(--red);font-size:13px;margin-top:5px;font-weight:600}
 .field.err .msg{display:block}
 .chips{display:flex;flex-wrap:wrap;gap:8px;border:1.5px solid transparent;border-radius:14px}
+.field input.interest-other{margin-top:10px}
 .chip{height:46px;padding:0 16px;border-radius:12px;background:var(--inp);border:1.5px solid var(--line);font-size:16px;font-weight:600;color:var(--text2);transition:all .15s}
 .chip.on{background:var(--lime);color:var(--on-acc);border-color:var(--lime);transform:translateY(-1px);box-shadow:0 6px 18px rgba(var(--lime-rgb),.25)}
 .consent{display:flex;gap:12px;align-items:flex-start;margin:6px 0 18px;font-size:14px;color:var(--text2);line-height:1.4;cursor:pointer}
@@ -369,12 +370,15 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
         <label>Interested in <i>*</i> <span style="text-transform:none;letter-spacing:0;font-weight:500">(pick one or more)</span></label>
         <div class="chips" data-chips="interest" data-multi="1">
           <button type="button" class="chip">Boxing</button>
+          <button type="button" class="chip">Kickboxing</button>
           <button type="button" class="chip">Muay Thai</button>
           <button type="button" class="chip">Jiu Jitsu</button>
+          <button type="button" class="chip">Wrestling</button>
           <button type="button" class="chip">Pilates</button>
           <button type="button" class="chip">KO Coach Machine</button>
         </div>
-        <div class="msg">Pick at least one</div>
+        <input type="text" name="interestOther" class="interest-other" maxlength="80" autocomplete="off" placeholder="Something else? Type your interests here">
+        <div class="msg">Pick at least one or type your own</div>
       </div>
       <label class="consent" id="consentWrap">
         <input type="checkbox" name="consent"><span class="box"></span>
@@ -700,7 +704,7 @@ $('#leadForm').addEventListener('submit',e=>{
   e.preventDefault();
   const f=e.target,v={
     name:f.name.value.trim(),mobile:f.mobile.value.trim(),email:f.email.value.trim(),
-    city:f.city.value,gym:f.gym.value.trim(),profile:chosen.profile,interest:chosen.interest,consent:f.consent.checked
+    city:f.city.value,gym:f.gym.value.trim(),profile:chosen.profile,interest:[chosen.interest,f.interestOther.value.trim()].filter(Boolean).join(', '),consent:f.consent.checked
   };
   let ok=true;const bad=k=>{document.querySelector(`[data-f="${k}"]`).classList.add('err');ok=false};
   if(v.name.length<2)bad('name');
