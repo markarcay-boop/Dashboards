@@ -199,7 +199,8 @@ table.acts .dpt img{width:24px;height:24px;object-fit:contain;border-radius:6px;
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px}
 .gitem{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
 .gitem .im{height:130px;display:grid;place-items:center;background:repeating-conic-gradient(#f3f6f4 0 25%,#fff 0 50%) 0 0/16px 16px;padding:10px}
-.gitem .im img{max-width:100%;max-height:100%;object-fit:contain}
+.gitem .im{overflow:hidden}
+.gitem .im img{max-width:100%;max-height:110px;object-fit:contain}
 .gitem .ft{padding:8px 10px;display:flex;align-items:center;gap:6px;border-top:1px solid var(--line)}
 .gitem .ft b{flex:1;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
@@ -312,6 +313,13 @@ footer.ref h3::before{content:"";width:16px;height:4px;background:var(--y400);bo
 [data-theme=dark] .file .ic img{background:#fff}
 .themebtn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--card);cursor:pointer;font-size:17px;display:grid;place-items:center;flex:none}
 .themebtn:hover{border-color:var(--y400)}
+.syncpill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.syncpill:hover{border-color:var(--g400)}
+#busy{position:fixed;top:14px;left:50%;transform:translate(-50%,-80px);background:var(--card);color:var(--ink);border:1px solid var(--line);box-shadow:0 8px 28px rgba(0,0,0,.18);padding:10px 16px;border-radius:12px;font-weight:600;z-index:300;transition:.2s;display:flex;align-items:center;gap:10px;max-width:90vw}
+#busy.show{transform:translate(-50%,0)}
+.spin{width:16px;height:16px;border-radius:50%;border:2.5px solid var(--g200);border-top-color:var(--g600);animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (max-width:760px){.syncpill{display:none}}
 </style>
 </head>
 <body>
@@ -328,6 +336,7 @@ footer.ref h3::before{content:"";width:16px;height:4px;background:var(--y400);bo
       </div>
     </div>
     <div class="spacer"></div>
+    <button class="syncpill" id="syncPill" onclick="refresh()" title="Refresh data"></button>
     <button class="themebtn" id="themeBtn" title="Switch day / night theme">🌙</button>
     <div id="whoBox"></div>
   </div>
@@ -343,6 +352,7 @@ footer.ref h3::before{content:"";width:16px;height:4px;background:var(--y400);bo
 
 <main>
   <!-- ===================== DASHBOARD ===================== -->
+  <div id="connBanner"></div>
   <section class="page active" id="page-dashboard">
     <div class="toolbar" id="dashToolbar"></div>
     <div class="kpis" id="kpis"></div>
@@ -461,14 +471,13 @@ footer.ref h3::before{content:"";width:16px;height:4px;background:var(--y400);bo
         <div style="margin-top:12px"><button class="btn sm" id="resetColors">Reset default colours</button></div>
       </div>
 
-      <div class="sec-title"><div><h2>Data &amp; backup</h2><p class="sub">Data is saved in this browser. Export a backup to move it to another computer or share it with the CFO secretary.</p></div></div>
+      <div class="sec-title"><div><h2>Data &amp; backup</h2><p class="sub">All activities, memos and files are saved in the CFO Google Sheet and Google Drive, so every computer and phone sees the same data.</p></div></div>
       <div class="card">
-        <div style="display:flex;flex-wrap:wrap;gap:8px">
-          <button class="btn primary" id="btnExport">⬇ Export backup (.json)</button>
-          <button class="btn" id="btnImport">⬆ Import / merge backup</button>
-          <input type="file" id="importInput" accept=".json,application/json" hidden>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+          <button class="btn primary" id="btnExport">⬇ Download backup (.json)</button>
+          <button class="btn" onclick="refresh().then(()=>toast('Data refreshed'))">⟳ Refresh now</button>
         </div>
-        <p class="muted" style="font-size:12px;margin:10px 0 0">Importing merges records: items with the same ID are updated with the newer version, new items are added, nothing is deleted.</p>
+        <div id="legacyBox"></div>
       </div>
     </div>
     <div id="loginPage" class="hidden"></div>
@@ -531,60 +540,72 @@ const STATUSES = [
 const STATUS_SHORT = {planned:'Planned',arf:'ARF submitted',hardcopy:'Hard copy to district',review:'Under review',returned:'Returned for revision',approved:'Approved (UAN)',executed:'Executed',reported:'Reported',custom:'Custom'};
 const TARGET = 6; // activities per department per month (one per committee)
 
-/* Salted SHA-256 password hashes — plain passwords are not stored in this file */
+/* ==========================================================
+   SHARED DATABASE — Google Sheet + Drive through Google Apps Script
+   Every login, activity, memo and file goes to the same place, so every
+   browser that opens this page sees the same data.
+   Passwords are checked by the Apps Script on the server; no password
+   or password hash is stored in this public page.
+   ========================================================== */
+const API_URL = '';   // Apps Script web app URL (ends with /exec)
 const ACCOUNTS = {
-  buklod:{user:'Buklod', role:'dept', salt:'fd345fb6ade4ee18', hash:'3e9235c9c6f7c8fb9f0a9741490c95db6de72636522fe6dd2eb300bd5962270c'},
-  kadiwa:{user:'KADIWA', role:'dept', salt:'4e7172f53cd16066', hash:'a2e02d97952b98652cff5106ea213f00e500881d4c1b3b36e1380f9d8db43604'},
-  binhi: {user:'Binhi',  role:'dept', salt:'9cfcd9c652d403ad',  hash:'801bc32d51773e3f21269d7ebe2604d2c4a77f8e11507e71e8236c6ce2e2dfa8'},
-  pnk:   {user:'PNK',    role:'dept', salt:'594805d474adb5a6',    hash:'0c85346c6efac1ad403b4ec290a879083cdfb487e9b457404e6e65f389118543'},
-  scan:  {user:'SCAN',   role:'dept', salt:'a0e4b47c5c0c7df6',   hash:'f90c91eb43e6c593b894a189ddcf19bafc03a0d4694613582c000bfc7a9e3072'},
-  admin: {user:'admin',  role:'admin',salt:'f8a9e0eab9a3797f',  hash:'9e47091e6cad2cdd85db0a51dbf7ca6400a63d1bd8ab380ebaf3bd8d90837d4c'}
+  buklod:{user:'Buklod', role:'dept'}, kadiwa:{user:'KADIWA', role:'dept'}, binhi:{user:'Binhi', role:'dept'},
+  pnk:{user:'PNK', role:'dept'}, scan:{user:'SCAN', role:'dept'}, admin:{user:'admin', role:'admin'}
 };
-
-/* ==========================================================
-   SHA-256 (pure JS fallback when crypto.subtle is unavailable)
-   ========================================================== */
-function sha256js(ascii){
-  function rr(v,a){return (v>>>a)|(v<<(32-a))}
-  const bytes=new TextEncoder().encode(ascii);const K=[],H=[];let p=0;
-  for(let c=2;p<64;c++){let isP=true;for(let d=2;d*d<=c;d++)if(c%d===0){isP=false;break}
-    if(isP){if(p<8)H[p]=(Math.pow(c,.5)*4294967296)|0;K[p++]=(Math.pow(c,1/3)*4294967296)|0}}
-  const l=bytes.length,bl=l*8;const n=((l+9+63)>>6)<<6;const m=new Uint8Array(n);m.set(bytes);m[l]=0x80;
-  const dv=new DataView(m.buffer);dv.setUint32(n-4,bl>>>0);dv.setUint32(n-8,Math.floor(bl/4294967296));
-  const h=H.slice();const w=new Array(64);
-  for(let i=0;i<n;i+=64){for(let j=0;j<16;j++)w[j]=dv.getUint32(i+j*4);
-    for(let j=16;j<64;j++){const a=w[j-15],b=w[j-2];w[j]=(w[j-16]+(rr(a,7)^rr(a,18)^(a>>>3))+w[j-7]+(rr(b,17)^rr(b,19)^(b>>>10)))|0}
-    let [a,b,c,d,e,f,g,hh]=h;
-    for(let j=0;j<64;j++){const t1=(hh+(rr(e,6)^rr(e,11)^rr(e,25))+((e&f)^(~e&g))+K[j]+w[j])|0;const t2=((rr(a,2)^rr(a,13)^rr(a,22))+((a&b)^(a&c)^(b&c)))|0;
-      hh=g;g=f;f=e;e=(d+t1)|0;d=c;c=b;b=a;a=(t1+t2)|0}
-    h[0]=(h[0]+a)|0;h[1]=(h[1]+b)|0;h[2]=(h[2]+c)|0;h[3]=(h[3]+d)|0;h[4]=(h[4]+e)|0;h[5]=(h[5]+f)|0;h[6]=(h[6]+g)|0;h[7]=(h[7]+hh)|0}
-  return h.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
-}
-async function sha256(str){
-  try{ if(window.crypto&&crypto.subtle){const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(str));return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('')} }catch(e){}
-  return sha256js(str);
-}
 function randHex(n){const a=new Uint8Array(n);(window.crypto||{}).getRandomValues?crypto.getRandomValues(a):a.forEach((_,i)=>a[i]=Math.random()*256|0);return [...a].map(b=>b.toString(16).padStart(2,'0')).join('')}
-
-/* ==========================================================
-   STORAGE (IndexedDB)
-   ========================================================== */
-const DB_NAME='ghusaisCFO', DB_VER=1;
-let db;
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);
-  r.onupgradeneeded=()=>{const d=r.result;['activities','files','news'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s,{keyPath:'id'})});if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv')};
-  r.onsuccess=()=>{db=r.result;res(db)};r.onerror=()=>rej(r.error)})}
-function tx(store,mode='readonly'){return db.transaction(store,mode).objectStore(store)}
-function pr(req){return new Promise((res,rej)=>{req.onsuccess=()=>res(req.result);req.onerror=()=>rej(req.error)})}
-const DB={
-  all:s=>pr(tx(s).getAll()),
-  get:(s,k)=>pr(tx(s).get(k)),
-  put:(s,v)=>pr(tx(s,'readwrite').put(v)),
-  del:(s,k)=>pr(tx(s,'readwrite').delete(k)),
-  kvGet:k=>pr(tx('kv').get(k)),
-  kvSet:(k,v)=>pr(tx('kv','readwrite').put(v,k))
-};
 const uid=()=>Date.now().toString(36)+randHex(4);
+class AuthError extends Error{}
+async function api(action,payload){
+  if(!API_URL) throw new Error('The shared database is not connected yet.');
+  if(!navigator.onLine) throw new Error('You are offline. Connect to the internet and try again.');
+  const body=JSON.stringify(Object.assign({action,token:S.session&&S.session.token},payload||{}));
+  let r;
+  try{ r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body,redirect:'follow'}); }
+  catch(e){ throw new Error('Could not reach the shared database. Check your internet connection.'); }
+  let d; try{ d=await r.json(); }catch(e){ throw new Error('Unexpected reply from the shared database.'); }
+  if(!d.ok){ if(d.error==='auth') throw new AuthError('Your login has expired. Please log in again.'); throw new Error(d.error||'Server error'); }
+  return d;
+}
+async function apiGet(){
+  const r=await fetch(API_URL+(API_URL.includes('?')?'&':'?')+'action=all&t='+Date.now(),{redirect:'follow'});
+  const d=await r.json(); if(!d.ok) throw new Error(d.error||'Server error'); return d;
+}
+/* wraps a server call: shows progress, handles expired logins */
+async function withBusy(msg,fn){
+  busy(msg);
+  try{ return await fn(); }
+  catch(e){ if(e instanceof AuthError){ endSession(); toast(e.message,1); renderAll(); go('settings'); } else toast(e.message,1); throw e; }
+  finally{ busy(); }
+}
+function busy(msg){
+  let el=document.getElementById('busy');
+  if(!el){el=document.createElement('div');el.id='busy';document.body.appendChild(el)}
+  if(msg){el.innerHTML=`<span class="spin"></span>${esc(msg)}`;el.classList.add('show')} else el.classList.remove('show');
+}
+const b64of=dataUrl=>String(dataUrl).split(',')[1]||'';
+/* Uploaded files live in Google Drive: show/open them by their Drive id */
+const driveThumb=f=>f.fileId?`https://drive.google.com/thumbnail?id=${encodeURIComponent(f.fileId)}&sz=w800`:'';
+const srcOf=f=>f.data||driveThumb(f);
+function openFile(f){
+  if(!f) return;
+  if(f.data){ downloadBlob(dataURLToBlob(f.data),f.name); return; }
+  const url=f.url||(f.fileId?`https://drive.google.com/uc?export=download&id=${encodeURIComponent(f.fileId)}`:'');
+  if(url) window.open(url,'_blank','noopener');
+}
+function imgFallback(img){ if(img.dataset.fb) return; img.dataset.fb=1; const m=img.src.match(/id=([^&]+)/); if(m) img.src='https://lh3.googleusercontent.com/d/'+m[1]+'=w800'; }
+
+/* Data saved by the earlier browser-only version, kept so it can be moved to the shared database */
+function readLegacy(){return new Promise(res=>{
+  try{
+    const r=indexedDB.open('ghusaisCFO');
+    r.onupgradeneeded=()=>{try{r.transaction.abort()}catch(e){}};
+    r.onerror=()=>res(null);
+    r.onsuccess=()=>{const db=r.result;const out={};const stores=['activities','news','files'].filter(s=>db.objectStoreNames.contains(s));
+      if(!stores.length){db.close();return res(null)}
+      const tx=db.transaction(stores);let left=stores.length;
+      stores.forEach(s=>{const q=tx.objectStore(s).getAll();q.onsuccess=()=>{out[s]=q.result||[];if(--left===0){db.close();res(out)}};q.onerror=()=>{out[s]=[];if(--left===0){db.close();res(out)}}});};
+  }catch(e){res(null)}
+})}
 
 /* ==========================================================
    STATE
@@ -596,8 +617,9 @@ const S={
   range:1,           // months shown
   detailMonth:null,  // month key for matrix
   deptFilter:new Set(DEPTS.map(d=>d.id)),
-  session:null,      // {id, role}
-  settings:{deptColors:true, colors:{}, pw:{}}
+  session:null,      // {id, role, token}
+  conn:'loading', lastSync:0, legacy:null,
+  settings:{deptColors:true, colors:{}}
 };
 const mk=(y,m)=>`${y}-${String(m+1).padStart(2,'0')}`;
 const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -621,28 +643,49 @@ function downloadBlob(blob,name){const u=URL.createObjectURL(blob);const a=docum
    INIT
    ========================================================== */
 async function init(){
-  await openDB();
-  const st=await DB.kvGet('settings'); if(st) S.settings=Object.assign(S.settings,st);
-  const sess=sessionStorage.getItem('cfoSession'); if(sess) try{S.session=JSON.parse(sess)}catch(e){}
-  await reload();
+  try{const st=JSON.parse(localStorage.getItem('cfoSettings')||'null');if(st)S.settings=Object.assign(S.settings,{deptColors:st.deptColors!==false,colors:st.colors||{}})}catch(e){}
+  const sess=sessionStorage.getItem('cfoSession'); if(sess) try{S.session=JSON.parse(sess); if(!S.session.token) S.session=null}catch(e){}
   document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.page));
   const tb=document.getElementById('themeBtn');const syncTB=()=>{const dk=document.documentElement.dataset.theme==='dark';tb.textContent=dk?'☀️':'🌙';tb.title=dk?'Switch to day theme':'Switch to night theme'};syncTB();
   tb.onclick=()=>{const n=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=n;try{localStorage.setItem('cfoTheme',n)}catch(e){}syncTB();renderAll()};
   renderStatic(); bindTools(); bindSettings(); bindActFilters();
   renderAll();
+  await reload(true); renderAll();
+  S.legacy=await readLegacy(); renderLegacy();
+  // keep everyone up to date: refresh every 60 s and whenever the tab comes back into view
+  setInterval(()=>{ if(!document.hidden) refresh(); },60000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden&&Date.now()-S.lastSync>15000) refresh(); });
 }
-async function reload(){
-  S.activities=await DB.all('activities');
-  S.news=(await DB.all('news')).sort((a,b)=>(b.pinned-a.pinned)||(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
-  S.files=await DB.all('files');
+async function refresh(){ if(document.getElementById('modalBg').classList.contains('open')) return; await reload(false); renderData(); }
+async function reload(showErr){
+  if(!API_URL){S.conn='none';return}
+  try{
+    const d=await apiGet();
+    S.activities=d.activities||[]; S.files=d.files||[];
+    S.news=(d.news||[]).sort((a,b)=>(b.pinned-a.pinned)||(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
+    S.conn='ok'; S.lastSync=Date.now();
+  }catch(e){ S.conn='err'; if(showErr) toast('Could not load the shared data. Check your internet connection.',1); }
+  renderSync();
 }
+function renderData(){renderDashboard();renderActivities();renderNews();renderDownloads();renderSync()}
+function renderSync(){
+  const el=document.getElementById('syncPill'); if(!el) return;
+  const m={ok:['var(--g600)','Live · updated '+new Date(S.lastSync||Date.now()).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})],
+    err:['var(--r600)','Offline · tap to retry'],none:['var(--y600)','Shared database not connected'],loading:['var(--ink3)','Loading…']}[S.conn];
+  el.innerHTML=`<span class="dot" style="background:${m[0]}"></span>${m[1]}`;
+  const bn=document.getElementById('connBanner');
+  if(bn) bn.innerHTML=S.conn==='none'?`<div class="note red" style="margin-bottom:14px"><b>Shared database not connected.</b> This page can be viewed, but logins and saving are switched off until the Google Apps Script web app URL is added (see the setup steps in apps-script.gs).</div>`
+    :S.conn==='err'?`<div class="note red" style="margin-bottom:14px">Could not reach the shared database. Showing the last data loaded. <a href="#" onclick="refresh();return false">Try again</a></div>`:'';
+}
+function upsertLocal(list,rec){const i=S[list].findIndex(x=>x.id===rec.id);if(i>=0)S[list][i]=rec;else S[list].push(rec)}
+function endSession(){S.session=null;sessionStorage.removeItem('cfoSession')}
 function go(page){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id==='page-'+page));
   if(page==='settings'){document.getElementById('settingsMain').classList.remove('hidden');document.getElementById('loginPage').classList.add('hidden')}
   window.scrollTo({top:0,behavior:'smooth'});
 }
-function renderAll(){renderWho();renderToolbars();renderDashboard();renderActivities();renderNews();renderDownloads();renderSettings()}
+function renderAll(){renderWho();renderToolbars();renderDashboard();renderActivities();renderNews();renderDownloads();renderSettings();renderSync();renderLegacy()}
 
 function renderStatic(){
   document.getElementById('acrList').innerHTML=COMMITTEES.map(c=>`<div><b>${c.id}</b><span>${c.name}</span></div>`).join('')+
@@ -664,14 +707,7 @@ function renderWho(){
   document.querySelectorAll('.adminOnly').forEach(el=>el.classList.toggle('hidden',!(S.session&&S.session.role==='admin')));
   document.getElementById('btnAddNews').classList.toggle('hidden',!(S.session&&S.session.role==='admin'));
 }
-function logout(){S.session=null;sessionStorage.removeItem('cfoSession');toast('Logged out');renderAll()}
-async function verifyLogin(acctId,username,password){
-  const a=ACCOUNTS[acctId]; if(!a) return false;
-  if(username.trim().toLowerCase()!==a.user.toLowerCase()) return false;
-  const override=S.settings.pw&&S.settings.pw[acctId];
-  const salt=override?override.salt:a.salt, hash=override?override.hash:a.hash;
-  return (await sha256(salt+password))===hash;
-}
+function logout(){if(S.session&&S.session.token)api('logout').catch(()=>{});endSession();toast('Logged out');renderAll()}
 
 /* ==========================================================
    TOOLBARS (month navigation)
@@ -841,7 +877,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 function openActivityView(id){
   const a=S.activities.find(x=>x.id===id); if(!a) return; const d=deptById(a.dept); const c=COMMITTEES.find(x=>x.id===a.committee)||{};
   const canEdit=S.session&&S.session.role==='dept'&&S.session.id===a.dept;
-  const atts=(a.attachments||[]).map((f,i)=>`<div class="att">${(f.type||'').startsWith('image/')?`<img src="${f.data}" alt="">`:'📄'}<a href="#" onclick="dlAtt('${a.id}',${i});return false">${esc(f.name)}</a></div>`).join('');
+  const atts=(a.attachments||[]).map((f,i)=>`<div class="att">${(f.type||'').startsWith('image/')?`<img src="${srcOf(f)}" alt="" onerror="imgFallback(this)">`:'📄'}<a href="#" onclick="dlAtt('${a.id}',${i});return false">${esc(f.name)}</a></div>`).join('');
   openModal(`<div class="mh" style="border-top:5px solid ${deptColor(a.dept)}"><img src="${LOGOS[a.dept]}" alt=""><h3>${esc(a.title)}</h3><button class="iconbtn" onclick="closeModal()">✕</button></div>
    <div class="mb"><dl class="dl">
      <dt>Department</dt><dd>${d.name}</dd>
@@ -858,7 +894,7 @@ function openActivityView(id){
    </dl></div>
    <div class="mf">${canEdit?`<button class="btn ghost-red" onclick="deleteActivity('${a.id}')">Delete</button><button class="btn primary" onclick="openActivityForm('${a.id}')">Edit</button>`:''}<button class="btn" onclick="closeModal()">Close</button></div>`);
 }
-function dlAtt(aid,i){const a=S.activities.find(x=>x.id===aid);const f=a.attachments[i];downloadBlob(dataURLToBlob(f.data),f.name)}
+function dlAtt(aid,i){const a=S.activities.find(x=>x.id===aid);openFile(a.attachments[i])}
 
 /* ---------- Activity form ---------- */
 let formAtts=[];
@@ -894,7 +930,7 @@ function openActivityForm(id){
     <div><label class="f">Attachments (attendance sheet, photos, request form…)</label>
       <input type="file" id="actFiles" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" class="inp">
       <div class="atts" id="actAttList"></div>
-      <div class="muted" style="font-size:11.5px;margin-top:4px">Photos are resized automatically to keep the dashboard light. Max 8 MB per non-image file.</div></div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">Files are saved to the CFO Google Drive. Photos are resized automatically. Max 8 MB per non-image file.</div></div>
    </div>
   </form>
   <div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" type="submit" form="actForm">Save activity</button></div>`);
@@ -911,7 +947,7 @@ function toggleStatusFields(st){
   show('uanWrap',['approved','executed','reported','custom'].includes(st));
   show('attWrap',['executed','reported','custom'].includes(st));
 }
-function renderFormAtts(){const el=document.getElementById('actAttList');if(!el)return;el.innerHTML=formAtts.map((f,i)=>`<div class="att">${f.type.startsWith('image/')?`<img src="${f.data}">`:'📄'}<span>${esc(f.name)}</span><button type="button" onclick="formAtts.splice(${i},1);renderFormAtts()">✕</button></div>`).join('')}
+function renderFormAtts(){const el=document.getElementById('actAttList');if(!el)return;el.innerHTML=formAtts.map((f,i)=>`<div class="att">${(f.type||'').startsWith('image/')?`<img src="${srcOf(f)}" onerror="imgFallback(this)">`:'📄'}<span>${esc(f.name)}</span><button type="button" onclick="formAtts.splice(${i},1);renderFormAtts()">✕</button></div>`).join('')}
 function shrinkImage(file,max,q){return new Promise(res=>{const img=new Image();const u=URL.createObjectURL(file);img.onload=()=>{let {width:w,height:h}=img;const s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(img,0,0,w,h);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',q))};img.onerror=()=>{URL.revokeObjectURL(u);blobToDataURL(file).then(res)};img.src=u})}
 async function saveActivity(e,id){
   e.preventDefault();
@@ -920,16 +956,30 @@ async function saveActivity(e,id){
   const prev=id?S.activities.find(x=>x.id===id):null;
   if(prev&&prev.dept!==S.session.id){toast('Not allowed',1);return}
   if(o.status==='custom'&&!o.customStatus.trim()){toast('Please describe the custom status',1);return}
-  const rec={id:id||uid(),dept:S.session.id,title:o.title.trim(),committee:o.committee,date:o.date,week:Number(o.week),
-    expense:o.expense,amount:o.expense==='with'?o.amount:'',venue:o.venue.trim(),status:o.status,customStatus:o.status==='custom'?o.customStatus.trim():'',
-    uan:o.uan?o.uan.trim():'',attendance:o.attendance?o.attendance.trim():'',notes:o.notes.trim(),attachments:formAtts,
-    createdAt:prev?prev.createdAt:Date.now(),updatedAt:Date.now(),createdBy:S.session.id};
-  await DB.put('activities',rec); await reload(); closeModal(); toast('Activity saved'); renderDashboard(); renderActivities();
+  const btn=document.querySelector('button[form=actForm]'); if(btn) btn.disabled=true;
+  try{
+    await withBusy('Saving activity…',async()=>{
+      const pending=formAtts.filter(x=>!x.fileId).length; let k=0;
+      for(let i=0;i<formAtts.length;i++){ const x=formAtts[i]; if(x.fileId) continue;
+        busy(`Uploading attachment ${++k} of ${pending}…`);
+        const r=await api('upload',{kind:'attachment',name:x.name,type:x.type,b64:b64of(x.data)});
+        formAtts[i]=r.file; }
+      busy('Saving activity…');
+      const rec={id:id||'',title:o.title.trim(),committee:o.committee,date:o.date,week:Number(o.week),
+        expense:o.expense,amount:o.expense==='with'?o.amount:'',venue:o.venue.trim(),status:o.status,customStatus:o.status==='custom'?o.customStatus.trim():'',
+        uan:o.uan?o.uan.trim():'',attendance:o.attendance?o.attendance.trim():'',notes:o.notes.trim(),attachments:formAtts};
+      const r=await api('saveActivity',{record:rec});
+      upsertLocal('activities',r.record);
+    });
+    closeModal(); toast('Activity saved — visible to everyone'); renderData();
+  }catch(err){ renderFormAtts(); }
+  finally{ if(btn) btn.disabled=false; }
 }
 async function deleteActivity(id){
   const a=S.activities.find(x=>x.id===id); if(!a||!S.session||S.session.id!==a.dept) return;
   if(!confirm('Delete “'+a.title+'”? This cannot be undone.')) return;
-  await DB.del('activities',id); await reload(); closeModal(); toast('Activity deleted'); renderDashboard(); renderActivities();
+  try{ await withBusy('Deleting…',()=>api('deleteActivity',{id})); }catch(e){ return; }
+  S.activities=S.activities.filter(x=>x.id!==id); closeModal(); toast('Activity deleted'); renderData();
 }
 
 /* ==========================================================
@@ -945,7 +995,7 @@ function renderNews(){
     ${n.attachment?`<div style="margin-top:10px"><button class="btn sm" onclick="dlNews('${n.id}')">📎 Download ${esc(n.attachment.name)}</button></div>`:''}
   </div>`).join(''):`<div class="empty">No news or memos yet.${isAdmin?' Use “Post update” to add the latest CFO memo.':''}</div>`;
 }
-function dlNews(id){const n=S.news.find(x=>x.id===id);downloadBlob(dataURLToBlob(n.attachment.data),n.attachment.name)}
+function dlNews(id){const n=S.news.find(x=>x.id===id);openFile(n&&n.attachment)}
 let newsAtt=null;
 function openNewsForm(id){
   if(!(S.session&&S.session.role==='admin'))return;
@@ -961,12 +1011,17 @@ function openNewsForm(id){
      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="pinned" ${n&&n.pinned?'checked':''}> Pin to top as the latest memo</label>
    </div></form>
    <div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="newsSave">Publish</button></div>`);
-  document.getElementById('newsFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>15*1048576){toast('File is larger than 15 MB',1);return}newsAtt={name:f.name,type:f.type,data:await blobToDataURL(f)};document.getElementById('newsAttName').textContent='Attached: '+f.name};
+  document.getElementById('newsFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;if(f.size>9*1048576){toast('File is larger than 9 MB',1);return}newsAtt={name:f.name,type:f.type,data:await blobToDataURL(f)};document.getElementById('newsAttName').textContent='Attached: '+f.name};
   document.getElementById('newsSave').onclick=async()=>{const form=document.getElementById('newsForm');if(!form.reportValidity())return;const o=Object.fromEntries(new FormData(form).entries());
-    await DB.put('news',{id:n?n.id:uid(),title:o.title.trim(),date:o.date,ref:o.ref.trim(),audience:o.audience,body:o.body,pinned:!!o.pinned,attachment:newsAtt,createdAt:n?n.createdAt:Date.now(),updatedAt:Date.now()});
-    await reload();closeModal();toast('Update published');renderNews();renderDashboard()};
+    const btn=document.getElementById('newsSave');btn.disabled=true;
+    try{await withBusy('Publishing…',async()=>{
+      if(newsAtt&&!newsAtt.fileId){busy('Uploading memo file…');const u=await api('upload',{kind:'memo',name:newsAtt.name,type:newsAtt.type,b64:b64of(newsAtt.data)});newsAtt=u.file}
+      busy('Publishing…');
+      const r=await api('saveNews',{record:{id:n?n.id:'',title:o.title.trim(),date:o.date,ref:o.ref.trim(),audience:o.audience,body:o.body,pinned:!!o.pinned,attachment:newsAtt}});
+      upsertLocal('news',r.record);S.news.sort((a,b)=>(b.pinned-a.pinned)||(b.date||'').localeCompare(a.date||'')||(b.createdAt||0)-(a.createdAt||0));
+    });closeModal();toast('Update published');renderData()}catch(e){btn.disabled=false}};
 }
-async function deleteNews(id){if(!confirm('Delete this update?'))return;await DB.del('news',id);await reload();renderNews();renderDashboard();toast('Deleted')}
+async function deleteNews(id){if(!confirm('Delete this update?'))return;try{await withBusy('Deleting…',()=>api('deleteNews',{id}))}catch(e){return}S.news=S.news.filter(x=>x.id!==id);renderData();toast('Deleted')}
 
 /* ==========================================================
    DOWNLOADS
@@ -980,14 +1035,14 @@ function renderDownloads(){
     <button class="iconbtn" title="Download" onclick="dlFile('${f.id}')">⬇</button>${isAdmin?`<button class="iconbtn" title="Delete" style="color:var(--r600)" onclick="delFile('${f.id}')">✕</button>`:''}</div>`).join('')}</div>`:'<div class="empty">No documents uploaded yet. The CFO admin can add official forms here.</div>';
   const builtIn=[...DEPTS,{id:'cfo',name:'CFO'}].map(d=>({id:'builtin-'+d.id,title:d.name+' logo',name:d.name+'_logo.'+(LOGOS[d.id].startsWith('data:image/png')?'png':LOGOS[d.id].startsWith('data:image/webp')?'webp':'jpg'),data:LOGOS[d.id],builtin:true}));
   const logos=[...builtIn,...S.files.filter(f=>f.category==='logos').sort((a,b)=>(b.uploadedAt||0)-(a.uploadedAt||0))];
-  document.getElementById('logosList').innerHTML=`<div class="gallery">${logos.map(f=>`<div class="gitem"><div class="im">${(f.type||'image/').startsWith('image/')||f.builtin?`<img src="${f.data}" alt="">`:`<div class="ic" style="font-weight:800;color:var(--g700)">${extOf(f.name)}</div>`}</div>
+  document.getElementById('logosList').innerHTML=`<div class="gallery">${logos.map(f=>`<div class="gitem"><div class="im">${(f.type||'image/').startsWith('image/')||f.builtin?`<img src="${srcOf(f)}" alt="" loading="lazy" onerror="imgFallback(this)">`:`<div class="ic" style="font-weight:800;color:var(--g700)">${extOf(f.name)}</div>`}</div>
     <div class="ft"><b title="${esc(f.title||f.name)}">${esc(f.title||f.name)}</b><button class="btn sm" onclick="dlFile('${f.id}')">⬇</button>${isAdmin&&!f.builtin?`<button class="btn sm ghost-red" onclick="delFile('${f.id}')">✕</button>`:''}</div></div>`).join('')}</div>`;
 }
 function dlFile(id){
   if(id.startsWith('builtin-')){const d=id.slice(8);const u=LOGOS[d];const ext=u.startsWith('data:image/png')?'png':u.startsWith('data:image/webp')?'webp':'jpg';downloadBlob(dataURLToBlob(u),(d==='cfo'?'CFO':deptById(d).name)+'_logo.'+ext);return}
-  const f=S.files.find(x=>x.id===id); if(f) downloadBlob(dataURLToBlob(f.data),f.name);
+  openFile(S.files.find(x=>x.id===id));
 }
-async function delFile(id){if(!(S.session&&S.session.role==='admin'))return;if(!confirm('Delete this file?'))return;await DB.del('files',id);await reload();renderDownloads();toast('File deleted')}
+async function delFile(id){if(!(S.session&&S.session.role==='admin'))return;if(!confirm('Delete this file?'))return;try{await withBusy('Deleting…',()=>api('deleteFile',{id}))}catch(e){return}S.files=S.files.filter(x=>x.id!==id);renderDownloads();toast('File deleted')}
 function openFileUpload(cat){
   if(!(S.session&&S.session.role==='admin')){toast('Admin login required',1);return}
   openModal(`<div class="mh"><h3>${cat==='forms'?'Add official forms / documents':'Add logos / art material'}</h3><button class="iconbtn" onclick="closeModal()">✕</button></div>
@@ -995,14 +1050,19 @@ function openFileUpload(cat){
     <div><label class="f">Files *</label><input type="file" class="inp" id="upFiles" multiple ${cat==='logos'?'accept="image/*,.svg,.ai,.eps,.pdf,.psd,.zip"':''}></div>
     <div><label class="f">Display title (optional — used when uploading one file)</label><input class="inp" id="upTitle"></div>
     <div><label class="f">Short description</label><input class="inp" id="upDesc" placeholder="e.g. Activity Request Form — 2026 version"></div>
-    <div class="muted" style="font-size:12px">Max 20 MB per file.</div>
+    <div class="muted" style="font-size:12px">Files are saved to the CFO Google Drive and can be downloaded by everyone. Max 9 MB per file.</div>
    </div></div>
    <div class="mf"><button class="btn" onclick="closeModal()">Cancel</button><button class="btn primary" id="upSave">Upload</button></div>`);
   document.getElementById('upSave').onclick=async()=>{const files=[...document.getElementById('upFiles').files];if(!files.length){toast('Choose at least one file',1);return}
     const title=document.getElementById('upTitle').value.trim(),desc=document.getElementById('upDesc').value.trim();let n=0;
-    for(const f of files){if(f.size>20*1048576){toast(f.name+' exceeds 20 MB',1);continue}
-      await DB.put('files',{id:uid(),category:cat,name:f.name,title:files.length===1&&title?title:'',desc,type:f.type,size:f.size,data:await blobToDataURL(f),uploadedAt:Date.now()});n++}
-    await reload();closeModal();renderDownloads();toast(n+' file'+(n===1?'':'s')+' uploaded')};
+    const btn=document.getElementById('upSave');btn.disabled=true;
+    try{await withBusy('Uploading…',async()=>{
+      for(const [i,f] of files.entries()){if(f.size>9*1048576){toast(f.name+' exceeds 9 MB',1);continue}
+        busy(`Uploading ${i+1} of ${files.length}: ${f.name}`);
+        const r=await api('upload',{kind:cat,name:f.name,type:f.type||'application/octet-stream',b64:b64of(await blobToDataURL(f)),title:files.length===1?title:'',desc});
+        upsertLocal('files',r.record);n++}
+    })}catch(e){}
+    btn.disabled=false;if(n){closeModal();renderDownloads();toast(n+' file'+(n===1?'':'s')+' uploaded')}};
 }
 
 /* ==========================================================
@@ -1020,7 +1080,7 @@ function renderSettings(){
       <div><label class="f">Current password</label><input class="inp" type="password" id="pwOld" style="width:170px"></div>
       <div><label class="f">New password</label><input class="inp" type="password" id="pwNew" style="width:170px"></div>
       <button class="btn" id="pwBtn">Change password</button><button class="btn red" onclick="logout()">Log out</button></div>
-      <p class="muted" style="font-size:11.5px;margin:10px 0 0">A changed password is stored as a salted hash in this browser only. Export a backup to carry it to other computers.</p>`;
+      <p class="muted" style="font-size:11.5px;margin:10px 0 0">The new password works on every computer and phone straight away.</p>`;
     document.getElementById('pwBtn').onclick=changePassword;}
   const tg=document.getElementById('deptColorToggle'); tg.checked=!!S.settings.deptColors;
   document.getElementById('colorPickers').innerHTML=DEPTS.map(d=>`<label class="ci"><input type="color" data-d="${d.id}" value="${S.settings.colors[d.id]||d.color}" ${S.settings.deptColors?'':'disabled'}><img src="${LOGOS[d.id]}" style="width:26px;height:26px;object-fit:contain"><b style="font-size:13px">${d.name}</b></label>`).join('');
@@ -1042,30 +1102,62 @@ function showLogin(id){
     </div></form></div></div>`;
   document.getElementById('lgUser').focus();
   document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();
-    const ok=await verifyLogin(id,document.getElementById('lgUser').value,document.getElementById('lgPass').value);
-    if(!ok){document.getElementById('lgErr').classList.remove('hidden');return}
-    S.session={id,role:ACCOUNTS[id].role};sessionStorage.setItem('cfoSession',JSON.stringify(S.session));
+    const err=document.getElementById('lgErr'),btn=e.target.querySelector('button[type=submit]');err.classList.add('hidden');
+    if(!API_URL){err.textContent='Logins are switched off until the shared database is connected.';err.classList.remove('hidden');return}
+    btn.disabled=true;btn.textContent='Checking…';
+    let d;
+    try{d=await api('login',{acct:id,user:document.getElementById('lgUser').value,pass:document.getElementById('lgPass').value})}
+    catch(x){err.textContent=x.message;err.classList.remove('hidden');btn.disabled=false;btn.textContent='Log in';return}
+    S.session={id:d.id,role:d.role,token:d.token};sessionStorage.setItem('cfoSession',JSON.stringify(S.session));
     toast('Welcome, '+(isAdmin?'CFO Admin':d.name));renderAll();go(isAdmin?'downloads':'activities')};
 }
 async function changePassword(){
   const o=document.getElementById('pwOld').value,n=document.getElementById('pwNew').value;
-  if(!(await verifyLogin(S.session.id,ACCOUNTS[S.session.id].user,o))){toast('Current password is incorrect',1);return}
   if(n.length<6){toast('New password must be at least 6 characters',1);return}
-  const salt=randHex(8);S.settings.pw=S.settings.pw||{};S.settings.pw[S.session.id]={salt,hash:await sha256(salt+n)};await saveSettings();toast('Password changed');renderSettings();
+  try{await withBusy('Changing password…',()=>api('changePassword',{oldPass:o,newPass:n}))}catch(e){return}
+  toast('Password changed');renderSettings();
 }
-async function saveSettings(){await DB.kvSet('settings',S.settings)}
+async function saveSettings(){try{localStorage.setItem('cfoSettings',JSON.stringify({deptColors:S.settings.deptColors,colors:S.settings.colors}))}catch(e){}}
 function bindSettings(){
   document.getElementById('deptColorToggle').onchange=async e=>{S.settings.deptColors=e.target.checked;await saveSettings();renderAll()};
   document.getElementById('resetColors').onclick=async()=>{S.settings.colors={};await saveSettings();renderAll()};
-  document.getElementById('btnExport').onclick=async()=>{
-    const data={app:'ghusais-cfo-dashboard',version:1,exportedAt:new Date().toISOString(),activities:await DB.all('activities'),news:await DB.all('news'),files:await DB.all('files'),settings:{deptColors:S.settings.deptColors,colors:S.settings.colors,pw:S.settings.pw}};
-    downloadBlob(new Blob([JSON.stringify(data)],{type:'application/json'}),`Ghusais_CFO_backup_${new Date().toISOString().slice(0,10)}.json`);toast('Backup exported')};
-  document.getElementById('btnImport').onclick=()=>document.getElementById('importInput').click();
-  document.getElementById('importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
-    try{const d=JSON.parse(await f.text());if(d.app!=='ghusais-cfo-dashboard')throw new Error('Not a CFO dashboard backup');
-      let n=0;for(const s of ['activities','news','files']){for(const r of (d[s]||[])){const cur=await DB.get(s,r.id);if(!cur||(r.updatedAt||r.uploadedAt||0)>=(cur.updatedAt||cur.uploadedAt||0)){await DB.put(s,r);n++}}}
-      if(d.settings){S.settings.pw=Object.assign({},S.settings.pw,d.settings.pw||{});await saveSettings()}
-      await reload();renderAll();toast(`Imported ${n} record${n===1?'':'s'}`)}catch(err){toast('Import failed: '+err.message,1)}};
+  document.getElementById('btnExport').onclick=()=>{
+    const data={app:'ghusais-cfo-dashboard',version:2,exportedAt:new Date().toISOString(),activities:S.activities,news:S.news,files:S.files};
+    downloadBlob(new Blob([JSON.stringify(data,null,1)],{type:'application/json'}),`Ghusais_CFO_backup_${new Date().toISOString().slice(0,10)}.json`);toast('Backup downloaded')};
+}
+
+/* ---------- Move data from the old browser-only version ---------- */
+function legacyDone(){try{return JSON.parse(localStorage.getItem('cfoMigrated')||'[]')}catch(e){return []}}
+function legacyMark(id){const d=legacyDone();d.push(id);try{localStorage.setItem('cfoMigrated',JSON.stringify(d))}catch(e){}}
+function legacyMine(){
+  const L=S.legacy; if(!L||!S.session) return {acts:[],files:[],news:[]};
+  const done=new Set(legacyDone());
+  if(S.session.role==='dept') return {acts:(L.activities||[]).filter(a=>a.dept===S.session.id&&!done.has(a.id)),files:[],news:[]};
+  return {acts:[],files:(L.files||[]).filter(f=>!done.has(f.id)),news:(L.news||[]).filter(n=>!done.has(n.id))};
+}
+function renderLegacy(){
+  const box=document.getElementById('legacyBox'); if(!box) return;
+  const L=S.legacy; const tot=L?(L.activities||[]).length+(L.files||[]).length+(L.news||[]).length:0;
+  if(!tot){box.innerHTML='';return}
+  const m=legacyMine(); const n=m.acts.length+m.files.length+m.news.length;
+  box.innerHTML=`<div class="note" style="margin-top:12px"><b>Data from the earlier version was found in this browser</b> (${(L.activities||[]).length} activities, ${(L.files||[]).length} files, ${(L.news||[]).length} memos). It is not shared yet.<br>
+    ${!S.session?'Log in to move your items to the shared database. Each department moves its own activities; the admin moves files and memos.'
+     :n?`<div style="margin-top:8px"><button class="btn primary sm" onclick="migrateLegacy()">Move ${n} item${n===1?'':'s'} to the shared database</button></div>`
+     :'Nothing left to move for this account.'}</div>`;
+}
+async function migrateLegacy(){
+  const m=legacyMine(); let ok=0;
+  try{await withBusy('Moving data…',async()=>{
+    for(const [i,a] of m.acts.entries()){busy(`Activity ${i+1} of ${m.acts.length}: ${a.title}`);
+      const atts=[];for(const x of (a.attachments||[])){if(x.fileId){atts.push(x);continue}if(!x.data)continue;const u=await api('upload',{kind:'attachment',name:x.name,type:x.type,b64:b64of(x.data)});atts.push(u.file)}
+      const r=await api('saveActivity',{record:Object.assign({},a,{id:'',attachments:atts})});upsertLocal('activities',r.record);legacyMark(a.id);ok++}
+    for(const [i,f] of m.files.entries()){busy(`File ${i+1} of ${m.files.length}: ${f.name}`);if(!f.data){legacyMark(f.id);continue}
+      const r=await api('upload',{kind:f.category==='logos'?'logos':'forms',name:f.name,type:f.type||'application/octet-stream',b64:b64of(f.data),title:f.title||'',desc:f.desc||''});upsertLocal('files',r.record);legacyMark(f.id);ok++}
+    for(const [i,n] of m.news.entries()){busy(`Memo ${i+1} of ${m.news.length}: ${n.title}`);let att=null;
+      if(n.attachment&&n.attachment.data){const u=await api('upload',{kind:'memo',name:n.attachment.name,type:n.attachment.type,b64:b64of(n.attachment.data)});att=u.file}
+      const r=await api('saveNews',{record:Object.assign({},n,{id:'',attachment:att})});upsertLocal('news',r.record);legacyMark(n.id);ok++}
+  })}catch(e){}
+  if(ok)toast(`Moved ${ok} item${ok===1?'':'s'} to the shared database`);renderData();renderLegacy();
 }
 
 /* ==========================================================
