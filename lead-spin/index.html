@@ -424,8 +424,8 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
 <!-- PIN -->
 <div class="overlay" id="pinOv">
   <div class="pin-box">
-    <h4>Staff only</h4>
-    <p>Enter PIN to open settings</p>
+    <h4>Admin login</h4>
+    <p>Enter the admin password to open settings</p>
     <div class="pin-dots" id="pinDots"><i></i><i></i><i></i><i></i></div>
     <div class="keypad" id="keypad"></div>
   </div>
@@ -522,7 +522,7 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
           <div class="field"><label>Event name (shown on kiosk)</label><input type="text" id="setEvent"></div>
           <div class="field"><label>Business name (consent text &amp; exports)</label><input type="text" id="setBrand" placeholder="Optional"></div>
           <div class="field"><label>Device label (e.g. Tablet 1)</label><input type="text" id="setDevice"></div>
-          <div class="field"><label>Admin PIN (4 digits)</label><input type="text" id="setPin" inputmode="numeric" maxlength="4"></div>
+          <div class="field"><label>New admin password (4 digits)</label><input type="password" id="setPin" inputmode="numeric" maxlength="4" autocomplete="new-password" placeholder="Leave blank to keep current"></div>
           <div class="field"><label>Return to form after result (seconds)</label><input type="number" id="setReset" min="5" max="120"></div>
         </div>
         <div style="margin-top:10px"><button class="btn lime" id="saveSettings">Save settings</button></div>
@@ -581,14 +581,14 @@ const DEFAULTS={
     {id:uid(),name:'Cap',qty:15,given:0,color:'#b8892a'},
     {id:uid(),name:'Boxing Gloves',qty:3,given:0,color:'#0f0d09'}
   ],
-  settings:{theme:'gold',bgV1:1,brand:'KO COACH',eventName:'',device:'Tablet 1',pin:'1234',resetSec:20,noDup:true,
+  settings:{theme:'gold',bgV1:1,brand:'KO COACH',eventName:'',device:'Tablet 1',passHash:'725506babd15cf507ac203ef34f3e25e2027dbefe999115dd4298935d97c1595',resetSec:20,noDup:true,
     weighted:true,consol:false,consolLabel:'Thank You!',consolPct:15,logo:null}
 };
 let st=load();
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function load(){
   try{const s=JSON.parse(localStorage.getItem(KEY));
-    if(s&&s.gifts){const fresh=!(s.settings&&s.settings.theme),mig=!(s.settings&&s.settings.bgV1);s.settings=Object.assign({},DEFAULTS.settings,s.settings||{});if(s.settings.eventName==='KO COACH Experience')s.settings.eventName='';if(fresh||mig){s.settings.theme='gold';s.settings.bgV1=1;const pl=THEMES.gold.palette;s.gifts.forEach((g,i)=>g.color=pl[i%pl.length])}s.leads=s.leads||[];return s;}
+    if(s&&s.gifts){const fresh=!(s.settings&&s.settings.theme),mig=!(s.settings&&s.settings.bgV1);s.settings=Object.assign({},DEFAULTS.settings,s.settings||{});if(s.settings.eventName==='KO COACH Experience')s.settings.eventName='';if(fresh||mig){s.settings.theme='gold';s.settings.bgV1=1;const pl=THEMES.gold.palette;s.gifts.forEach((g,i)=>g.color=pl[i%pl.length])}if(!/^[0-9a-f]{64}$/.test(s.settings.passHash||''))s.settings.passHash=DEFAULTS.settings.passHash;delete s.settings.pin;s.leads=s.leads||[];return s;}
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
 }
@@ -872,13 +872,13 @@ function pinKey(x){
   if(x==='⌫')pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=x;
   $$('#pinDots i').forEach((d,i)=>d.classList.toggle('f',i<pinBuf.length));
   if(pinBuf.length===4){
-    if(pinBuf===String(st.settings.pin||'1234')){setTimeout(()=>{$('#pinOv').classList.remove('show');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));openAdmin()},150)}
+    if(hashPass(pinBuf)===(st.settings.passHash||ADMIN_HASH)){setTimeout(()=>{$('#pinOv').classList.remove('show');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));openAdmin()},150)}
     else{const d=$('#pinDots');d.classList.add('shake');setTimeout(()=>{d.classList.remove('shake');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'))},400)}
   }
 }
 $('#gearBtn').addEventListener('click',()=>{if(spinning)return;pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));$('#pinOv').classList.add('show')});
-function openAdmin(){$('#admin').classList.add('show');renderLeads();renderGifts();fillSettings()}
-$('#adminClose').addEventListener('click',()=>{$('#admin').classList.remove('show');renderKiosk();if($('#wheelScreen').classList.contains('active'))drawWheel()});
+function openAdmin(){$('#admin').classList.add('show');renderLeads();renderGifts();fillSettings();pullGifts(true)}
+$('#adminClose').addEventListener('click',()=>{flushGiftPush();$('#admin').classList.remove('show');renderKiosk();if($('#wheelScreen').classList.contains('active'))drawWheel()});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+b.dataset.tab))});
 
 /* ================= ADMIN: LEADS ================= */
@@ -921,15 +921,15 @@ function renderGifts(){
 }
 $('#giftRows').addEventListener('input',e=>{
   const row=e.target.closest('.gift-row');if(!row)return;const g=st.gifts.find(x=>x.id===row.dataset.id);const k=e.target.dataset.k;
-  if(k==='qty')g.qty=Math.max(0,parseInt(e.target.value)||0);else if(k)g[k]=e.target.value;save();
+  if(k==='qty')g.qty=Math.max(0,parseInt(e.target.value)||0);else if(k)g[k]=e.target.value;save();pushGifts();
 });
 $('#giftRows').addEventListener('click',async e=>{
   const step=e.target.closest('[data-step]');
-  if(step){const row=step.closest('.gift-row'),g=st.gifts.find(x=>x.id===row.dataset.id);g.qty=Math.max(0,g.qty+ +step.dataset.step);row.querySelector('[data-k=qty]').value=g.qty;save();return}
+  if(step){const row=step.closest('.gift-row'),g=st.gifts.find(x=>x.id===row.dataset.id);g.qty=Math.max(0,g.qty+ +step.dataset.step);row.querySelector('[data-k=qty]').value=g.qty;save();pushGifts();return}
   const rm=e.target.closest('[data-rm]');
-  if(rm){const g=st.gifts.find(x=>x.id===rm.dataset.rm);if(await confirmBox('Remove gift?',`Remove "${g.name}" from the wheel?`,'Remove')){st.gifts=st.gifts.filter(x=>x.id!==g.id);save();renderGifts()}}
+  if(rm){const g=st.gifts.find(x=>x.id===rm.dataset.rm);if(await confirmBox('Remove gift?',`Remove "${g.name}" from the wheel?`,'Remove')){st.gifts=st.gifts.filter(x=>x.id!==g.id);save();pushGifts();renderGifts()}}
 });
-$('#addGift').addEventListener('click',()=>{st.gifts.push({id:uid(),name:'New Gift',qty:10,given:0,color:T().palette[st.gifts.length%6]});save();renderGifts();
+$('#addGift').addEventListener('click',()=>{st.gifts.push({id:uid(),name:'New Gift',qty:10,given:0,color:T().palette[st.gifts.length%6]});save();pushGifts();renderGifts();
   const inp=$$('#giftRows input[data-k=name]').pop();if(inp){inp.focus();inp.select()}});
 $('#setWeighted').addEventListener('change',e=>{st.settings.weighted=e.target.checked;save()});
 $('#setConsol').addEventListener('change',e=>{st.settings.consol=e.target.checked;save()});
@@ -943,18 +943,18 @@ $('#previewWheel').addEventListener('click',()=>{
 
 /* ================= ADMIN: SETTINGS ================= */
 function fillSettings(){
-  $('#setEvent').value=st.settings.eventName;$('#setBrand').value=st.settings.brand||'';renderThemes();$('#setDevice').value=st.settings.device;$('#setPin').value=st.settings.pin;
+  $('#setEvent').value=st.settings.eventName;$('#setBrand').value=st.settings.brand||'';renderThemes();$('#setDevice').value=st.settings.device;$('#setPin').value='';
   $('#setReset').value=st.settings.resetSec;
 }
 $('#saveSettings').addEventListener('click',()=>{
-  const pin=$('#setPin').value.trim();if(!/^\d{4}$/.test(pin)){toast('PIN must be 4 digits');return}
-  Object.assign(st.settings,{brand:$('#setBrand').value.trim(),eventName:$('#setEvent').value.trim(),device:$('#setDevice').value.trim(),pin,
+  const pin=$('#setPin').value.trim();if(pin&&!/^\d{4}$/.test(pin)){toast('Password must be 4 digits');return}
+  Object.assign(st.settings,{brand:$('#setBrand').value.trim(),eventName:$('#setEvent').value.trim(),device:$('#setDevice').value.trim(),passHash:pin?hashPass(pin):st.settings.passHash,
     resetSec:Math.min(120,Math.max(5,+$('#setReset').value||20))});
-  save();renderKiosk();renderBrand();toast('Settings saved');
+  save();$('#setPin').value='';renderKiosk();renderBrand();toast(pin?'Settings saved · password changed':'Settings saved');
 });
 $('#themes').addEventListener('click',e=>{
   const b=e.target.closest('[data-theme]');if(!b)return;st.settings.theme=b.dataset.theme;
-  const pl=T().palette;st.gifts.forEach((g,i)=>g.color=pl[i%pl.length]);save();
+  const pl=T().palette;st.gifts.forEach((g,i)=>g.color=pl[i%pl.length]);save();pushGifts();
   applyTheme();renderThemes();renderGifts();renderKiosk();drawWheel();toast(T().name+' theme applied');
 });
 $('#clearLeads').addEventListener('click',async()=>{
@@ -1129,6 +1129,56 @@ checkFont();
 setTimeout(checkFont,2500);
 applyTheme();buildBulbs();renderBrand();renderKiosk();drawWheel();
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{checkFont();drawWheel();renderBrand()});
+
+/* ================= ADMIN PASSWORD (hashed) =================
+   The password is never stored in plain text: only its SHA-256 hash is kept. Default password: 0000 */
+const ADMIN_HASH='725506babd15cf507ac203ef34f3e25e2027dbefe999115dd4298935d97c1595';
+function sha256(str){
+  const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+  const b=Array.from(new TextEncoder().encode(str)),l=b.length*8;b.push(0x80);while(b.length%64!==56)b.push(0);
+  for(let i=7;i>=0;i--)b.push(Math.floor(l/Math.pow(2,i*8))&255);
+  let h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];const w=new Array(64),r=(x,n)=>(x>>>n)|(x<<(32-n));
+  for(let o=0;o<b.length;o+=64){
+    for(let i=0;i<16;i++)w[i]=(b[o+i*4]<<24)|(b[o+i*4+1]<<16)|(b[o+i*4+2]<<8)|b[o+i*4+3];
+    for(let i=16;i<64;i++){const s0=r(w[i-15],7)^r(w[i-15],18)^(w[i-15]>>>3),s1=r(w[i-2],17)^r(w[i-2],19)^(w[i-2]>>>10);w[i]=(w[i-16]+s0+w[i-7]+s1)|0}
+    let [a,c,d,e,f,g,k,m]=h;
+    for(let i=0;i<64;i++){const S1=r(f,6)^r(f,11)^r(f,25),ch=(f&g)^(~f&k),t1=(m+S1+ch+K[i]+w[i])|0,S0=r(a,2)^r(a,13)^r(a,22),mj=(a&c)^(a&d)^(c&d),t2=(S0+mj)|0;m=k;k=g;g=f;f=(e+t1)|0;e=d;d=c;c=a;a=(t1+t2)|0}
+    h=[a,c,d,e,f,g,k,m].map((x,i)=>(h[i]+x)|0);
+  }
+  return h.map(x=>(x>>>0).toString(16).padStart(8,'0')).join('');
+}
+function hashPass(p){return sha256('leadspin-admin|'+p)}
+
+/* ================= SHARED GIFT LIST (Google Sheet "Gifts" tab) =================
+   The "Up for grabs" list and remaining stock are kept in the Google Sheet, so they stay
+   after a reload and are the same on every device. If the sheet script has not been
+   updated yet, the page keeps working with the gifts saved on this device. */
+let sheetGifts=false,giftPushT=null;
+function giftsFromSheet(list){return list.filter(g=>g&&g.name).map(g=>({id:String(g.id||uid()),name:String(g.name),qty:Math.max(0,parseInt(g.qty)||0),given:Math.max(0,parseInt(g.given)||0),color:/^#[0-9a-f]{6}$/i.test(g.color||'')?g.color:T().palette[0]}))}
+async function pullGifts(force){
+  if(!SHEET_URL||!navigator.onLine)return;
+  if(!force&&($('#admin').classList.contains('show')||spinning||!$('#formScreen').classList.contains('active')))return;
+  try{
+    const r=await fetch(SHEET_URL+'?action=gifts&t='+Date.now());const d=await r.json();
+    if(!d||!Array.isArray(d.gifts))return;
+    sheetGifts=true;
+    if(!d.gifts.length){if(st.gifts.length)pushGifts(true);return}
+    const fresh=giftsFromSheet(d.gifts);
+    if(JSON.stringify(fresh)!==JSON.stringify(st.gifts.map(g=>({id:g.id,name:g.name,qty:g.qty,given:g.given||0,color:g.color})))){
+      st.gifts=fresh;save();renderKiosk();if($('#admin').classList.contains('show'))renderGifts();
+    }
+  }catch(e){}
+}
+function pushGifts(now){
+  if(!SHEET_URL||!sheetGifts)return;clearTimeout(giftPushT);
+  const send=()=>{giftPushT=null;fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify({type:'gifts',gifts:st.gifts.map(g=>({id:g.id,name:g.name,qty:g.qty,given:g.given||0,color:g.color}))})}).catch(()=>{})};
+  if(now)send();else giftPushT=setTimeout(send,1200);
+}
+function flushGiftPush(){if(giftPushT){clearTimeout(giftPushT);pushGifts(true)}}
+setTimeout(()=>pullGifts(true),800);
+setInterval(()=>pullGifts(false),45000);
+window.addEventListener('online',()=>pullGifts(false));
 
 /* ================= SHARED GOOGLE SHEET SYNC =================
    Every lead is also sent to one private Google Sheet (via a Google Apps Script web app),
