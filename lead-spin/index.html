@@ -287,6 +287,18 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
 .mini-wheel{top:auto !important;bottom:-60px}
 @media (max-width:980px){.head-row .headline{font-size:clamp(52px,13vw,100px)}.hero-logo{width:clamp(96px,18vw,150px)}.mini-wheel{display:none}}
 @media (max-width:560px){.hero{padding-top:64px}.hero-logo{width:26vw;border-radius:12px}}
+
+/* Shared-sync status + boot loader */
+.sync-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:700;border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.sync-pill.live{color:#2fbf71;border-color:rgba(47,191,113,.4);background:rgba(47,191,113,.08)}
+.sync-pill.warn{color:#e5a33a;border-color:rgba(229,163,58,.45);background:rgba(229,163,58,.08)}
+.sync-pill.err{color:#e5484d;border-color:rgba(229,72,77,.45);background:rgba(229,72,77,.08)}
+#bootOv{position:fixed;inset:0;z-index:200;background:var(--bg);display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;color:var(--mute);font-weight:600}
+#bootOv.show{display:flex}
+#bootOv i{width:44px;height:44px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--lime);animation:bootspin .8s linear infinite}
+@keyframes bootspin{to{transform:rotate(360deg)}}
+.btn-main.busy{opacity:.7;pointer-events:none}
+.pin-box.checking .keypad{opacity:.45;pointer-events:none}
 </style>
 </head>
 <body>
@@ -422,6 +434,7 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
 <canvas id="confetti"></canvas>
 
 <!-- PIN -->
+<div id="bootOv"><i></i><span>Loading…</span></div>
 <div class="overlay" id="pinOv">
   <div class="pin-box">
     <h4>Admin login</h4>
@@ -456,6 +469,7 @@ tr:hover td{background:rgba(var(--lime-rgb),.03)}
 <div id="admin">
   <div class="a-head">
     <h1 id="adminTitle">Control Panel</h1>
+    <span class="sync-pill" id="syncPill">…</span>
     <div class="tabs" id="tabs">
       <button class="on" data-tab="leads">Leads</button>
       <button data-tab="prizes">Prizes</button>
@@ -587,7 +601,7 @@ const DEFAULTS={
 let st=load();
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(KEY));
+  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.gifts)window.__hadLocal=true;
     if(s&&s.gifts){const fresh=!(s.settings&&s.settings.theme),mig=!(s.settings&&s.settings.bgV1);s.settings=Object.assign({},DEFAULTS.settings,s.settings||{});if(s.settings.eventName==='KO COACH Experience')s.settings.eventName='';if(fresh||mig){s.settings.theme='gold';s.settings.bgV1=1;const pl=THEMES.gold.palette;s.gifts.forEach((g,i)=>g.color=pl[i%pl.length])}if(!/^[0-9a-f]{64}$/.test(s.settings.passHash||''))s.settings.passHash=DEFAULTS.settings.passHash;delete s.settings.pin;s.leads=s.leads||[];return s;}
   }catch(e){}
   return JSON.parse(JSON.stringify(DEFAULTS));
@@ -694,15 +708,17 @@ $('#dupOk').addEventListener('click',()=>{$('#dupOv').classList.remove('show')})
   document.querySelector(`[name=${k}]`).addEventListener('blur',e=>{
     if($('#dupOv').classList.contains('show'))return;
     const val=e.target.value.trim();
+    const hit=d=>{if(e.target.value.trim()!==val)return;markDup(k);
+      if(e.target.dataset.prompted!==val){e.target.dataset.prompted=val;showDup(d)}};   // prompt once per value
     const d=findDup(k==='mobile'?val:'',k==='email'?val:'');
-    if(!d)return;
-    markDup(k);
-    if(e.target.dataset.prompted!==val){e.target.dataset.prompted=val;showDup(d)}   // prompt once per value
+    if(d)return hit(d);
+    if(serverV===3&&val)api('GET',{action:'check',mobile:k==='mobile'?val:'',email:k==='email'?val:''},8000)
+      .then(r=>{if(r&&r.dup&&r.dup.field===k)hit({field:r.dup.field,lead:{ts:r.dup.ts}})});
   });
 });
 
 let currentLead=null;
-$('#leadForm').addEventListener('submit',e=>{
+$('#leadForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const f=e.target,v={
     name:f.name.value.trim(),mobile:f.mobile.value.trim(),email:f.email.value.trim(),
@@ -720,6 +736,21 @@ $('#leadForm').addEventListener('submit',e=>{
   const dup=findDup(v.mobile,v.email);
   if(dup){markDup(dup.field);showDup(dup);return}
   currentLead=Object.assign({id:uid(),ts:Date.now(),prize:'',device:st.settings.device||''},v);
+  if(serverV===3){                       // shared mode: the sheet checks duplicates and draws the prize
+    const btn=$('#leadForm button[type=submit]');btn.classList.add('busy');
+    const r=await api('POST',{type:'register',lead:leadRow(currentLead)},20000);
+    btn.classList.remove('busy');
+    if(r&&r.ok===false&&r.dup){markDup(r.dup.field);showDup({field:r.dup.field,lead:{ts:r.dup.ts}});currentLead=null;return}
+    if(r&&r.ok){
+      if(r.settings)Object.assign(st.settings,r.settings);
+      if(Array.isArray(r.gifts))st.gifts=giftsFromSheet(r.gifts);   // stock before this draw, so the won slice is on the wheel
+      Object.assign(currentLead,{prize:r.prize||'',prizeName:r.prizeName||'',serverKey:r.key||'__none',synced:true});
+      st.leads.push(currentLead);save();renderKiosk();
+      if(!r.key){showResult(null);return}
+      goWheel();return;
+    }
+    toast('Offline — entry saved on this device and will sync later');
+  }
   st.leads.push(currentLead);save();
   if(!wheelSegments().length){currentLead.prize='No gifts left';save();syncLeads();showResult(null);return}
   goWheel();
@@ -795,15 +826,18 @@ function goWheel(){
 }
 $('#spinBtn').addEventListener('click',()=>{
   if(spinning||!currentLead)return;spinning=true;$('#spinBtn').disabled=true;
-  const key=pickWinner();
+  const key=currentLead.serverKey&&currentLead.serverKey!=='__none'?currentLead.serverKey:pickWinner();
   // commit result immediately (prevents refresh abuse)
   let giftName;
   if(key==='__consol'){giftName=st.settings.consolLabel||'Thank You!';currentLead.prize='— ('+giftName+')'}
-  else{const g=st.gifts.find(x=>x.id===key);g.qty--;g.given=(g.given||0)+1;giftName=g.name;currentLead.prize=g.name}
+  else{const g=st.gifts.find(x=>x.id===key);
+    if(g){g.qty=Math.max(0,g.qty-1);g.given=(g.given||0)+1;if(g.baseQty!==undefined)g.baseQty=Math.max(0,g.baseQty-1);giftName=g.name}
+    else giftName=currentLead.prizeName||currentLead.prize;
+    currentLead.prize=giftName}
   save(); syncLeads();
   // find a segment index for that key
   const idxs=segsCache.map((s,i)=>s.id===key?i:-1).filter(i=>i>=0);
-  const idx=idxs[Math.floor(Math.random()*idxs.length)];
+  const idx=idxs.length?idxs[Math.floor(Math.random()*idxs.length)]:0;
   const segDeg=360/segsCache.length,center=idx*segDeg+segDeg/2;
   const jitter=(Math.random()-.5)*segDeg*.6;
   const base=rotation-(rotation%360);
@@ -872,12 +906,14 @@ function pinKey(x){
   if(x==='⌫')pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=x;
   $$('#pinDots i').forEach((d,i)=>d.classList.toggle('f',i<pinBuf.length));
   if(pinBuf.length===4){
-    if(hashPass(pinBuf)===(st.settings.passHash||ADMIN_HASH)){setTimeout(()=>{$('#pinOv').classList.remove('show');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));openAdmin()},150)}
-    else{const d=$('#pinDots');d.classList.add('shake');setTimeout(()=>{d.classList.remove('shake');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'))},400)}
+    const box=$('#pinOv .pin-box'),pin=pinBuf;box.classList.add('checking');
+    verifyPin(pin).then(h=>{box.classList.remove('checking');
+      if(h){adminAuth=h;setTimeout(()=>{$('#pinOv').classList.remove('show');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));openAdmin()},150)}
+      else{const d=$('#pinDots');d.classList.add('shake');setTimeout(()=>{d.classList.remove('shake');pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'))},400)}});
   }
 }
 $('#gearBtn').addEventListener('click',()=>{if(spinning)return;pinBuf='';$$('#pinDots i').forEach(d=>d.classList.remove('f'));$('#pinOv').classList.add('show')});
-function openAdmin(){$('#admin').classList.add('show');renderLeads();renderGifts();fillSettings();pullGifts(true)}
+function openAdmin(){$('#admin').classList.add('show');renderLeads();renderGifts();fillSettings();setStatus();adminRefresh(true)}
 $('#adminClose').addEventListener('click',()=>{flushGiftPush();$('#admin').classList.remove('show');renderKiosk();if($('#wheelScreen').classList.contains('active'))drawWheel()});
 $('#tabs').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;$$('#tabs button').forEach(x=>x.classList.toggle('on',x===b));$$('.pane').forEach(p=>p.classList.toggle('on',p.id==='pane-'+b.dataset.tab))});
 
@@ -903,6 +939,7 @@ $('#leadRows').addEventListener('click',async e=>{
   const b=e.target.closest('[data-del]');if(!b)return;
   const l=st.leads.find(x=>x.id===b.dataset.del);
   if(await confirmBox('Delete lead?',`Remove ${l.name} (${l.mobile}) from the list? This doesn't return their gift to stock.`,'Delete')){
+    if(serverV===3&&adminAuth){const r=await api('POST',{type:'deleteLead',auth:adminAuth,id:l.id});if(!r||!r.ok){toast('⚠ Could not delete from the Google Sheet');return}}
     st.leads=st.leads.filter(x=>x.id!==l.id);save();renderLeads();toast('Lead deleted')}
 });
 
@@ -931,10 +968,10 @@ $('#giftRows').addEventListener('click',async e=>{
 });
 $('#addGift').addEventListener('click',()=>{st.gifts.push({id:uid(),name:'New Gift',qty:10,given:0,color:T().palette[st.gifts.length%6]});save();pushGifts();renderGifts();
   const inp=$$('#giftRows input[data-k=name]').pop();if(inp){inp.focus();inp.select()}});
-$('#setWeighted').addEventListener('change',e=>{st.settings.weighted=e.target.checked;save()});
-$('#setConsol').addEventListener('change',e=>{st.settings.consol=e.target.checked;save()});
-$('#setConsolLabel').addEventListener('input',e=>{st.settings.consolLabel=e.target.value;save()});
-$('#setConsolPct').addEventListener('input',e=>{st.settings.consolPct=Math.min(90,Math.max(1,+e.target.value||15));save()});
+$('#setWeighted').addEventListener('change',e=>{st.settings.weighted=e.target.checked;save();queueSave()});
+$('#setConsol').addEventListener('change',e=>{st.settings.consol=e.target.checked;save();queueSave()});
+$('#setConsolLabel').addEventListener('input',e=>{st.settings.consolLabel=e.target.value;save();queueSave()});
+$('#setConsolPct').addEventListener('input',e=>{st.settings.consolPct=Math.min(90,Math.max(1,+e.target.value||15));save();queueSave()});
 $('#previewWheel').addEventListener('click',()=>{
   if(!wheelSegments().length){toast('Add a gift with quantity above 0');return}
   $('#admin').classList.remove('show');renderKiosk();
@@ -950,7 +987,9 @@ $('#saveSettings').addEventListener('click',()=>{
   const pin=$('#setPin').value.trim();if(pin&&!/^\d{4}$/.test(pin)){toast('Password must be 4 digits');return}
   Object.assign(st.settings,{brand:$('#setBrand').value.trim(),eventName:$('#setEvent').value.trim(),device:$('#setDevice').value.trim(),passHash:pin?hashPass(pin):st.settings.passHash,
     resetSec:Math.min(120,Math.max(5,+$('#setReset').value||20))});
-  save();$('#setPin').value='';renderKiosk();renderBrand();toast(pin?'Settings saved · password changed':'Settings saved');
+  save();$('#setPin').value='';renderKiosk();renderBrand();
+  if(serverV===3)doSave(pin?{newPassHash:hashPass(pin)}:null).then(ok=>toast(ok?(pin?'Saved for all devices · password changed':'Saved for all devices'):'⚠ Saved on this device only — check internet'));
+  else toast(pin?'Settings saved · password changed':'Settings saved');
 });
 $('#themes').addEventListener('click',e=>{
   const b=e.target.closest('[data-theme]');if(!b)return;st.settings.theme=b.dataset.theme;
@@ -958,10 +997,15 @@ $('#themes').addEventListener('click',e=>{
   applyTheme();renderThemes();renderGifts();renderKiosk();drawWheel();toast(T().name+' theme applied');
 });
 $('#clearLeads').addEventListener('click',async()=>{
-  if(await confirmBox('Clear all leads?',`This permanently deletes all ${st.leads.length} leads on this device. Export Excel or a backup first.`,'Delete all')){st.leads=[];save();renderLeads();toast('All leads cleared')}
+  const shared=serverV===3&&adminAuth;
+  if(await confirmBox('Clear all leads?',`This permanently deletes all ${st.leads.length} leads ${shared?'from the Google Sheet (every device)':'on this device'}. Export Excel or a backup first.`,'Delete all')){
+    if(shared){const r=await api('POST',{type:'clearLeads',auth:adminAuth});if(!r||!r.ok){toast('⚠ Could not clear the Google Sheet');return}}
+    st.leads=[];save();renderLeads();toast('All leads cleared')}
 });
 $('#resetStock').addEventListener('click',async()=>{
-  if(await confirmBox('Reset gift counts?','Sets every gift\'s "Given" counter back to 0. Quantities stay as they are.','Reset')){st.gifts.forEach(g=>g.given=0);save();renderGifts();renderLeads();toast('Counters reset')}
+  if(await confirmBox('Reset gift counts?','Sets every gift\'s "Given" counter back to 0. Quantities stay as they are.','Reset')){
+    if(serverV===3&&adminAuth){const r=await api('POST',{type:'resetGiven',auth:adminAuth});if(!r||!r.ok){toast('⚠ Could not reset in the Google Sheet');return}applyState(r)}
+    st.gifts.forEach(g=>g.given=0);save();renderGifts();renderLeads();toast('Counters reset')}
 });
 $('#fsBtn').addEventListener('click',()=>{const d=document.documentElement;try{(d.requestFullscreen||d.webkitRequestFullscreen).call(d)}catch(e){toast('Fullscreen not supported here')}});
 $('#backupBtn').addEventListener('click',()=>{
@@ -970,7 +1014,7 @@ $('#backupBtn').addEventListener('click',()=>{
 $('#importFile').addEventListener('change',e=>{
   const f=e.target.files[0];if(!f)return;const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);const ids=new Set(st.leads.map(l=>l.id));let n=0;
-    (d.leads||[]).forEach(l=>{if(l&&l.id&&!ids.has(l.id)){st.leads.push(l);ids.add(l.id);n++}});save();renderLeads();toast(`Merged ${n} new lead${n===1?'':'s'}`)}
+    (d.leads||[]).forEach(l=>{if(l&&l.id&&!ids.has(l.id)){l.synced=false;st.leads.push(l);ids.add(l.id);n++}});save();renderLeads();syncLeads();toast(`Merged ${n} new lead${n===1?'':'s'}`)}
     catch(err){toast('That file is not a valid backup')}};r.readAsText(f);e.target.value='';
 });
 
@@ -1149,46 +1193,160 @@ function sha256(str){
 }
 function hashPass(p){return sha256('leadspin-admin|'+p)}
 
-/* ================= SHARED GIFT LIST (Google Sheet "Gifts" tab) =================
-   The "Up for grabs" list and remaining stock are kept in the Google Sheet, so they stay
-   after a reload and are the same on every device. If the sheet script has not been
-   updated yet, the page keeps working with the gifts saved on this device. */
-let sheetGifts=false,giftPushT=null;
-function giftsFromSheet(list){return list.filter(g=>g&&g.name).map(g=>({id:String(g.id||uid()),name:String(g.name),qty:Math.max(0,parseInt(g.qty)||0),given:Math.max(0,parseInt(g.given)||0),color:/^#[0-9a-f]{6}$/i.test(g.color||'')?g.color:T().palette[0]}))}
-async function pullGifts(force){
-  if(!SHEET_URL||!navigator.onLine)return;
-  if(!force&&($('#admin').classList.contains('show')||spinning||!$('#formScreen').classList.contains('active')))return;
+/* ================= SHARED GOOGLE SHEET (single source of truth) =================
+   Settings, gift list/stock, leads, the duplicate check and the prize draw all live in one
+   Google Sheet (Apps Script web app, see apps-script.gs v3), so every phone, tablet and
+   browser that opens this page sees the same thing. This browser keeps a cache so the page
+   still opens offline; offline sign-ups are queued and sent when the connection returns. */
+const SHEET_URL='https://script.google.com/macros/s/AKfycbxFbDoLcWHE4AHc9Fhmm2VMzPPqjltY68LDxt7-h5dZbbbwtR8jTaTTSpMW6PsnVsdVYw/exec';
+const SHARED_KEYS=['theme','brand','eventName','resetSec','weighted','consol','consolLabel','consolPct'];
+let serverV=0,adminAuth=null,saveT=null,saving=false,srvSettingsEmpty=false,srvGiftsEmpty=false,sheetGifts=false,syncState='';
+async function api(method,data,timeout){
+  if(!SHEET_URL||!navigator.onLine)return null;
+  const ctl=window.AbortController?new AbortController():null,t=setTimeout(()=>ctl&&ctl.abort(),timeout||15000);
   try{
-    const r=await fetch(SHEET_URL+'?action=gifts&t='+Date.now());const d=await r.json();
-    if(!d||!Array.isArray(d.gifts))return;
-    sheetGifts=true;
-    if(!d.gifts.length){if(st.gifts.length)pushGifts(true);return}
-    const fresh=giftsFromSheet(d.gifts);
-    if(JSON.stringify(fresh)!==JSON.stringify(st.gifts.map(g=>({id:g.id,name:g.name,qty:g.qty,given:g.given||0,color:g.color})))){
-      st.gifts=fresh;save();renderKiosk();if($('#admin').classList.contains('show'))renderGifts();
-    }
-  }catch(e){}
+    let r;
+    if(method==='GET'){const q=new URLSearchParams(Object.assign({},data,{t:Date.now()}));
+      r=await fetch(SHEET_URL+'?'+q.toString(),{cache:'no-store',signal:ctl&&ctl.signal})}
+    else r=await fetch(SHEET_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(data),signal:ctl&&ctl.signal});
+    return await r.json();
+  }catch(e){return null}finally{clearTimeout(t)}
 }
-function pushGifts(now){
+function giftsFromSheet(list){return list.filter(g=>g&&g.name).map(g=>{const q=Math.max(0,parseInt(g.qty)||0);
+  return {id:String(g.id||uid()),name:String(g.name),qty:q,baseQty:q,given:Math.max(0,parseInt(g.given)||0),color:/^#[0-9a-f]{6}$/i.test(g.color||'')?g.color:T().palette[0]}})}
+function adminOpen(){return $('#admin').classList.contains('show')}
+function sharedSettings(){const o={};SHARED_KEYS.forEach(k=>o[k]=st.settings[k]);return o}
+
+/* apply what the sheet says to this page */
+function applyState(d){
+  if(!d||!d.ok)return false;
+  serverV=d.v>=3?3:(Array.isArray(d.gifts)?2:0);
+  const before=JSON.stringify([sharedSettings(),st.gifts.map(g=>[g.id,g.name,g.qty,g.given,g.color])]);
+  if(serverV===3){
+    srvSettingsEmpty=!d.settings||!Object.keys(d.settings).length;
+    if(!srvSettingsEmpty)SHARED_KEYS.forEach(k=>{if(d.settings[k]!==undefined)st.settings[k]=d.settings[k]});
+  }
+  srvGiftsEmpty=!Array.isArray(d.gifts)||!d.gifts.length;
+  if(!srvGiftsEmpty)st.gifts=giftsFromSheet(d.gifts);
+  else if(serverV===3&&!window.__hadLocal)st.gifts=[];            // brand-new visitor: no demo gifts
+  if(serverV===2){sheetGifts=true;if(srvGiftsEmpty&&st.gifts.length)pushGiftsV2(true)}
+  const changed=JSON.stringify([sharedSettings(),st.gifts.map(g=>[g.id,g.name,g.qty,g.given,g.color])])!==before;
+  save();
+  if(changed){applyTheme();renderBrand();renderKiosk();if($('#wheelScreen').classList.contains('active')&&!spinning)drawWheel()}
+  setStatus();return true;
+}
+
+/* everyone: keep in step with the sheet */
+async function pullState(force){
+  if(!force&&(adminOpen()||spinning||saveT||saving||!$('#formScreen').classList.contains('active')||$('#leadForm button[type=submit]').classList.contains('busy')))return;
+  const d=await api('GET',{action:'state'});
+  if(d)applyState(d);else setStatus();
+}
+
+/* admin: send changes to the sheet */
+function queueSave(now){
+  if(serverV===2){pushGiftsV2(now);return}
+  if(serverV!==3||!adminAuth)return;
+  clearTimeout(saveT);setStatus('saving');saveT=setTimeout(()=>{saveT=null;doSave()},now?0:900);
+}
+function pushGifts(now){queueSave(now)}
+function flushGiftPush(){if(saveT){clearTimeout(saveT);saveT=null;doSave()}}
+async function doSave(extra,opt){
+  if(serverV!==3||!adminAuth)return false;
+  saving=true;setStatus('saving');
+  const sent={};st.gifts.forEach(g=>sent[g.id]=g.qty);
+  const body=Object.assign({type:'save',auth:adminAuth,settings:sharedSettings()},extra||{});
+  if(!(opt&&opt.noGifts))body.gifts=st.gifts.map(g=>({id:g.id,name:g.name,qty:g.qty,baseQty:g.baseQty,given:g.given||0,color:g.color}));
+  const d=await api('POST',body,20000);saving=false;
+  if(!d||!d.ok){setStatus(d&&d.error==='auth'?'auth':'error');return false}
+  if(extra&&extra.newPassHash)adminAuth=extra.newPassHash;
+  // merge the sheet's stock back in, keeping any edits typed while this save was travelling
+  const srv={};(d.gifts||[]).forEach(g=>srv[g.id]=g);
+  st.gifts.forEach(g=>{const x=srv[g.id];if(!x)return;const typed=g.qty-(sent[g.id]===undefined?g.qty:sent[g.id]);
+    g.baseQty=x.qty;g.qty=Math.max(0,x.qty+typed);g.given=x.given});
+  srvGiftsEmpty=!(d.gifts||[]).length;srvSettingsEmpty=false;save();
+  if(adminOpen()){if(!$('#giftRows').contains(document.activeElement))renderGifts();
+    else $$('#giftRows .gift-row').forEach(r=>{const g=st.gifts.find(x=>x.id===r.dataset.id);if(g){const b=r.querySelector('.given b');if(b)b.textContent=g.given||0}});
+    renderLeads()}
+  renderKiosk();setStatus(saveT?'saving':'saved');return true;
+}
+
+/* admin login: the password is checked by the sheet, so it is the same on every device */
+async function verifyPin(pin){
+  const h=hashPass(pin),localOk=h===(st.settings.passHash||ADMIN_HASH);
+  if(serverV!==3){const d=await api('GET',{action:'state'},10000);if(d)applyState(d)}
+  if(serverV===3){
+    const r=await api('GET',{action:'auth',auth:h},10000);
+    if(r&&r.ok)return h;
+    if(r&&!r.passSet&&localOk){                                   // first time: carry this device's password over to the sheet
+      const c=await api('POST',{type:'claimPass',newPassHash:h},10000);if(c&&c.ok)return h}
+    if(r)return null;
+  }
+  return localOk?h:null;                                          // offline: fall back to this device
+}
+
+/* admin panel: fresh state, first-time seeding, and leads from every device */
+let adminTimer=null;
+async function adminRefresh(first){
+  if(!adminOpen())return;
+  if(first){const d=await api('GET',{action:'state'});if(d){applyState(d);if(!saveT&&!saving){renderGifts();fillSettings()}}
+    if(serverV===3&&adminAuth&&window.__hadLocal&&(srvSettingsEmpty||srvGiftsEmpty)&&(st.gifts.length||srvSettingsEmpty)){
+      // sheet is still empty: publish the settings/gifts already set up in this browser
+      if(await doSave(null,{noGifts:!srvGiftsEmpty}))toast('Your settings are now shared with all devices')}}
+  if(serverV===3&&adminAuth){
+    const r=await api('GET',{action:'leads',auth:adminAuth},20000);
+    if(r&&r.ok&&Array.isArray(r.leads)){
+      const ids=new Set(r.leads.map(l=>l.id)),pending=st.leads.filter(l=>!l.synced&&!ids.has(l.id));
+      st.leads=r.leads.map(l=>({id:l.id,ts:l.ts,name:l.name,mobile:l.mobile,email:l.email,city:l.city,gym:l.gym,profile:l.profile,
+        interest:l.interest,prize:l.prize,device:l.device,consent:l.consent,synced:true})).concat(pending);
+      save();renderLeads();
+    }
+  }
+  setStatus();
+  clearTimeout(adminTimer);adminTimer=setTimeout(()=>adminRefresh(false),30000);
+}
+
+function setStatus(s){
+  if(s)syncState=s;const el=$('#syncPill');if(!el)return;
+  let cls='',txt='';
+  if(serverV===3){
+    if(syncState==='saving'){cls='warn';txt='Saving…'}
+    else if(syncState==='error'){cls='err';txt='⚠ Not saved — check internet'}
+    else if(syncState==='auth'){cls='err';txt='⚠ Password changed on another device — log in again'}
+    else{cls='live';txt='● Live — shared with all devices'}
+  }else if(serverV===2){cls='warn';txt='⚠ Sheet script outdated — update to v3 so settings & leads are shared'}
+  else{cls='err';txt=navigator.onLine?'⚠ Not connected to the Google Sheet — changes stay on this device':'○ Offline — changes stay on this device'}
+  el.className='sync-pill '+cls;el.textContent=txt;
+}
+
+/* legacy (sheet script v2): only the gift list was shared */
+let giftPushT=null;
+function pushGiftsV2(now){
   if(!SHEET_URL||!sheetGifts)return;clearTimeout(giftPushT);
   const send=()=>{giftPushT=null;fetch(SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
     body:JSON.stringify({type:'gifts',gifts:st.gifts.map(g=>({id:g.id,name:g.name,qty:g.qty,given:g.given||0,color:g.color}))})}).catch(()=>{})};
   if(now)send();else giftPushT=setTimeout(send,1200);
 }
-function flushGiftPush(){if(giftPushT){clearTimeout(giftPushT);pushGifts(true)}}
-setTimeout(()=>pullGifts(true),800);
-setInterval(()=>pullGifts(false),45000);
-window.addEventListener('online',()=>pullGifts(false));
+
+/* first load: brand-new visitors wait briefly for the shared settings so they never see the wrong theme */
+(function boot(){
+  const ov=$('#bootOv');if(!window.__hadLocal&&navigator.onLine)ov.classList.add('show');
+  const done=()=>ov.classList.remove('show');setTimeout(done,6000);
+  pullState(true).then(done);
+})();
+setInterval(()=>pullState(false),20000);
+window.addEventListener('online',()=>{pullState(false);syncLeads()});
+window.addEventListener('offline',()=>setStatus());
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pullState(false)});
 
 /* ================= SHARED GOOGLE SHEET SYNC =================
    Every lead is also sent to one private Google Sheet (via a Google Apps Script web app),
    so sign-ups from all devices land in a single list. Leads stay saved on this device too;
    if the internet drops, unsent leads are retried automatically. Paste the Web app URL below. */
-const SHEET_URL='https://script.google.com/macros/s/AKfycbxFbDoLcWHE4AHc9Fhmm2VMzPPqjltY68LDxt7-h5dZbbbwtR8jTaTTSpMW6PsnVsdVYw/exec';
 let syncing=false;
 function leadRow(l){const j=x=>Array.isArray(x)?x.join(', '):(x||'');
-  return {id:l.id,time:new Date(l.ts).toLocaleString('en-GB'),name:l.name,mobile:l.mobile,email:l.email,
-    city:l.city,club:l.gym,profile:j(l.profile),interest:j(l.interest),prize:l.prize,device:l.device};}
+  return {type:'lead',id:l.id,time:new Date(l.ts).toLocaleString('en-GB'),name:l.name,mobile:l.mobile,email:l.email,
+    city:l.city,gym:l.gym,club:l.gym,profile:j(l.profile),interest:j(l.interest),prize:l.prize,device:l.device,consent:l.consent!==false};}
 async function syncLeads(){
   if(!SHEET_URL||syncing||!navigator.onLine)return; syncing=true;
   try{
