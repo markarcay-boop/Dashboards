@@ -8,3 +8,4 @@ Demo dashboards by ITV (Intertech Vision). All data shown is fictional sample da
 - [RAMsys Sentrl - Tamdeen Malls Kuwait](ramsys-sentrl-tamdeen/)
 - [Lead Spin - KO COACH kiosk](lead-spin/)
 - [Ghusais CFO activity dashboard](ghusais-cfo/)
+- [Mark Arcay - Technical Capability Profile](mark-arcay/)
