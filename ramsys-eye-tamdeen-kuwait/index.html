@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1119">
+<title>RAMsys Eye · Tamdeen Malls Kuwait</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: fixed top bar + tab strip, one centred 1180px work column; each tab is a stack of glass panels over a live node-network backdrop */
+:root{
+  --bg:#0b1119; --bg2:#101a26; --panel:rgba(22,32,45,.72); --panel-solid:#16202d; --line:rgba(160,185,210,.16); --line2:rgba(160,185,210,.28);
+  --fg:#eef3f8; --muted:#93a3b5; --dim:#62738a;
+  --olive:#8ea35a; --olive-hi:#b5c97a; --olive-deep:#3d4a26;
+  --blue:#3a7bfd; --blue-hi:#8fb6ff; --cyan:#22c6b8; --violet:#a34be0;
+  --ok:#2fcf6a; --warn:#f59e2b; --crit:#ef3e3e; --info:#4b8cff;
+  --f-ui:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif; --f-num:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-ui);font-size:14px;min-height:100vh;overflow-x:hidden}
+#net{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.app{position:relative;z-index:1}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--olive-hi);outline-offset:2px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+
+/* top bar */
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:#111}
+.topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:linear-gradient(90deg,#0d0f12 0%,#1b1e22 55%,#3f4d2c 100%);border-bottom:1px solid #000}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.topbar .wrap{display:flex;align-items:center;gap:14px;height:56px}
+.logo{height:26px;width:auto;display:block}
+.spacer{flex:1}
+.blur-tg{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--warn);letter-spacing:.06em;background:none;border:0;padding:4px}
+.sw{width:50px;height:22px;border-radius:11px;background:#2a2f36;border:1px solid #444;position:relative;transition:.2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#ddd;transition:.2s}
+.sw span{position:absolute;right:5px;top:3px;font-size:9px;color:#aaa}
+.blur-on .sw{background:var(--olive-deep);border-color:var(--olive)}
+.blur-on .sw::after{left:30px;background:var(--olive-hi)}
+.blur-on .sw span{left:5px;right:auto;color:var(--olive-hi)}
+.icon-btn{width:36px;height:36px;border-radius:50%;border:1px solid #555;background:#15181c;display:grid;place-items:center;position:relative}
+.icon-btn svg{width:16px;height:16px;stroke:#ddd;fill:none;stroke-width:1.8}
+.badge{position:absolute;top:-3px;right:-3px;min-width:17px;height:17px;border-radius:9px;background:var(--crit);font-size:10px;font-weight:700;display:grid;place-items:center;padding:0 4px;color:#fff}
+.user{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;text-align:left}
+.avatar{width:36px;height:36px;border-radius:50%;background:#fff;display:grid;place-items:center}
+.avatar svg{width:22px;height:22px}
+.user b{display:block;font-size:13px}
+.user small{font-size:10px;color:#bbb}
+.caret{width:26px;height:26px;border-radius:6px;background:#232629;display:grid;place-items:center;border:0}
+.caret svg{width:12px;stroke:#ccc;fill:none;stroke-width:2}
+
+/* tab strip */
+.tabs{border-bottom:1px solid var(--line);background:rgba(11,17,25,.6);backdrop-filter:blur(6px)}
+.tabs .wrap{display:flex;align-items:center;gap:12px;min-height:60px;flex-wrap:wrap;padding-block:8px}
+.navs{display:flex;gap:4px;overflow-x:auto;flex:1 1 560px;min-width:0;scrollbar-width:none}
+.nav{display:flex;align-items:center;gap:8px;white-space:nowrap;background:none;border:0;border-bottom:2px solid transparent;padding:12px 10px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#dfe6ee}
+.nav svg{width:18px;height:18px;stroke:#9aa7b4;fill:none;stroke-width:1.5}
+.nav:hover{color:#fff}
+.nav[aria-selected="true"]{border-bottom-color:var(--olive)}
+.nav[aria-selected="true"] svg{stroke:var(--olive-hi)}
+.ask{display:flex;align-items:center;gap:8px;border:1px solid var(--line2);border-radius:26px;padding:4px 4px 4px 12px;background:rgba(15,22,31,.8);flex:0 1 330px;min-width:240px}
+.ask input{flex:1;min-width:0;background:none;border:0;outline:none;font-size:13px}
+.ask input::placeholder{color:#cfd7df}
+.mic{width:16px;height:16px;stroke:#99a;fill:none;stroke-width:1.6}
+.dot-logo{width:18px;height:18px;flex:none}
+.btn-olive{background:linear-gradient(180deg,#9fb46a,#7d9150);border:0;border-radius:20px;padding:8px 20px;font-weight:600;font-size:13px;color:#fff}
+.btn-olive:hover{filter:brightness(1.1)}
+
+/* panels */
+main.wrap{padding-block:24px 60px}
+.view{display:grid;gap:16px}
+.panel{background:var(--panel);border:1px solid var(--line2);border-radius:14px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);min-width:0;overflow:hidden}
+.ph{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line)}
+.ph h2{margin:0;font-size:15px;font-weight:700;flex:1;min-width:160px}
+.ph .hint{font-size:11px;color:var(--muted)}
+.pill-btn{background:transparent;border:1px solid var(--line2);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.pill-btn:hover{border-color:var(--olive-hi)}
+select.pill-btn{appearance:none;-webkit-appearance:none;padding-right:28px;background-image:linear-gradient(45deg,transparent 50%,#9aa 50%),linear-gradient(135deg,#9aa 50%,transparent 50%);background-position:calc(100% - 13px) 52%,calc(100% - 9px) 52%;background-size:4px 4px;background-repeat:no-repeat;background-color:var(--panel-solid)}
+select.pill-btn option{background:var(--panel-solid)}
+.seg{display:inline-flex;gap:2px}
+.seg button{background:none;border:0;border-bottom:2px solid transparent;padding:6px 10px;font-size:11px;font-weight:700;color:#cfd6de}
+.seg button[aria-pressed="true"]{border-bottom-color:var(--olive);color:#fff}
+.label{font-size:11px;color:var(--muted);letter-spacing:.03em}
+.blurable{transition:filter .2s}
+.blur-mode .blurable{filter:blur(7px)}
+
+/* HOME */
+.hello{display:flex;align-items:flex-end;gap:20px;flex-wrap:wrap;justify-content:space-between}
+.hello h1{margin:0;font-size:clamp(28px,4vw,40px);font-weight:500;letter-spacing:-.01em}
+.hello .date{font-size:12px;font-weight:600;margin-top:4px;color:#cfd6de}
+.home-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tile{position:relative;background:linear-gradient(140deg,rgba(40,48,58,.85),rgba(17,23,31,.85));border:1px solid var(--line2);border-radius:14px;padding:18px;min-height:200px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;transition:transform .2s,border-color .2s}
+.tile:hover{transform:translateY(-3px);border-color:var(--olive)}
+.tile b{font-size:15px;font-weight:700;letter-spacing:.02em;line-height:1.25;text-transform:uppercase}
+.tile .tic{width:76px;height:76px;stroke:var(--olive-hi);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;transition:transform .25s}
+.tile:hover .tic{transform:scale(1.06)}
+.tile .go{position:absolute;right:12px;bottom:12px;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#e6e6e6,#8a8a8a);display:grid;place-items:center}
+.tile .go svg{width:18px;stroke:#222;stroke-width:2.4;fill:none}
+.tile .stat{font-size:11px;color:var(--muted)}
+.tile .stat b{font-size:11px;color:var(--olive-hi);text-transform:none}
+
+.map-panel{position:relative;padding:16px;min-height:520px;display:flex;flex-direction:column}
+.map-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;position:relative;z-index:2}
+.map-head h3{margin:0 0 8px;font-size:28px;font-weight:500}
+.city-card{display:grid;grid-template-columns:auto auto;border:1px solid var(--line2);border-radius:12px;overflow:hidden;background:rgba(10,14,20,.7)}
+.city-card .tot{padding:12px 16px;min-width:130px}
+.city-card .tot .big{font-size:28px;margin-top:6px}
+.city-card .sub{display:grid;border-left:1px solid var(--line2);background:rgba(255,255,255,.04)}
+.city-card .sub div{display:flex;align-items:center;gap:10px;padding:8px 14px;font-size:18px}
+.city-card .sub div+div{border-top:1px solid var(--line2)}
+.city-card svg{width:18px;height:18px;fill:none;stroke-width:2}
+.loc-search{position:relative}
+.loc-search input{background:#f4f6f8;color:#222;border:0;border-radius:8px;padding:11px 14px;width:200px;font-size:13px}
+.loc-sug{position:absolute;top:100%;left:0;right:0;margin-top:4px;background:#f4f6f8;border-radius:8px;overflow:hidden;z-index:5}
+.loc-sug button{display:block;width:100%;text-align:left;border:0;background:none;padding:9px 14px;color:#222;font-size:13px}
+.loc-sug button:hover{background:#dde3ea}
+.map-stage{flex:1;position:relative;margin-top:6px;min-height:500px;border-radius:10px;overflow:hidden;
+  background-image:linear-gradient(rgba(150,180,210,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(150,180,210,.09) 1px,transparent 1px);background-size:28px 28px}
+.map-stage svg{width:100%;height:100%;display:block;position:absolute;inset:0}
+.prov{fill:url(#topg);stroke:rgba(220,235,255,.55);stroke-width:1;cursor:pointer;transition:fill .25s,opacity .25s}
+.prov:hover{fill:#5f97ff}
+.prov.live{fill:#3f78f5}
+.prov.live:hover{fill:#6aa0ff}
+.prov.dim{opacity:0}
+.lift-name{fill:#3a1606;font:800 18px var(--f-ui);letter-spacing:.02em}
+.sea{fill:rgba(160,190,220,.35);font:italic 600 14px var(--f-ui);letter-spacing:.2em}
+.pin .lead{stroke:rgba(255,255,255,.45);stroke-width:1}
+.pin .pl{fill:#e9f0f8;font:600 14px var(--f-ui);paint-order:stroke;stroke:rgba(8,15,30,.9);stroke-width:4px}
+.pin .pn{fill:var(--olive-hi);font-weight:800}
+.pin.sel .pl{fill:#fff;font-weight:800;font-size:15px}
+.pin:focus{outline:none}
+.pin:focus-visible .core{stroke-width:5;stroke:var(--olive-hi)}
+.pin.sel .lead{stroke:var(--olive-hi);stroke-width:1.6}
+.mall-row{width:100%;background:none;border:0;border-bottom:1px solid var(--line);text-align:left;cursor:pointer;padding:6px 0}
+.mall-row:hover{color:var(--olive-hi)}
+.pn2{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--olive-deep);color:var(--olive-hi);font-size:10px}
+.pin{cursor:pointer}
+.pin .halo{fill:var(--crit);opacity:.25;transform-box:fill-box;transform-origin:center;animation:pulse 2.2s infinite}
+.pin .core{fill:#fff;stroke:var(--crit);stroke-width:3}
+
+.pin.sel .core{fill:var(--olive-hi);stroke:#fff}
+.pin.sel .halo{fill:var(--olive-hi);opacity:.4}
+.pin:hover .core{stroke-width:5}
+@keyframes pulse{0%{transform:scale(.6);opacity:.5}100%{transform:scale(2.2);opacity:0}}
+.map-arrows{position:absolute;left:16px;top:160px;display:flex;z-index:2}
+.map-arrows button{width:46px;height:46px;background:#111;border:1px solid #2b2b2b;display:grid;place-items:center}
+.map-arrows svg{width:16px;stroke:#ddd;fill:none;stroke-width:2}
+.map-sites{margin-top:12px;background:rgba(9,13,19,.85);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;font-size:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));column-gap:20px}
+.map-sites h4,.map-sites>button{grid-column:1/-1}
+.map-sites h4{margin:0 0 6px;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.site-row{display:flex;justify-content:space-between;gap:8px;padding:4px 0}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:11px;white-space:nowrap}
+.st::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.st.online{color:var(--ok)} .st.offline{color:var(--crit)} .st.maintenance{color:var(--warn)}
+
+.glance{border-top:1px solid var(--line);padding-top:20px}
+.glance-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+.glance-head h2{margin:0;font-size:16px}
+.glance-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.news{display:flex;gap:14px;min-width:0}
+.thumb{flex:none;width:150px;height:120px;border-radius:6px;position:relative;overflow:hidden;display:grid;place-items:center}
+.thumb svg{width:44px;height:44px;stroke:rgba(255,255,255,.85);fill:none;stroke-width:1.5}
+.thumb .src{position:absolute;top:6px;right:6px;font-size:9px;font-weight:800;background:#fff;color:#a00;border-radius:10px;padding:2px 6px}
+.news .when{font-size:12px;font-weight:700;color:var(--warn)}
+.news h4{margin:4px 0;font-size:14px;line-height:1.3;text-wrap:balance}
+.news p{margin:0;font-size:12px;color:var(--muted);line-height:1.4}
+.pager{display:flex}
+.pager button{width:38px;height:38px;border:1px solid #3a3f45;background:transparent;display:grid;place-items:center}
+.pager svg{width:14px;stroke:#ccc;fill:none;stroke-width:2}
+
+/* OPERATIONAL */
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.two>*+*{border-left:1px solid var(--line)}
+.sso{display:flex;align-items:center;justify-content:space-around;gap:20px;padding:30px 16px;flex-wrap:wrap}
+.ring{width:210px;height:210px;flex:none}
+.quad{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line2);border-radius:14px;overflow:hidden;background:rgba(0,0,0,.25)}
+.quad>div{padding:16px 22px;text-align:center;min-width:92px}
+.quad>div:nth-child(odd){border-right:1px solid var(--line2)}
+.quad>div:nth-child(-n+2){border-bottom:1px solid var(--line2)}
+.quad .label{font-size:12px;font-weight:600;color:#fff}
+.quad .v{font-size:26px;margin-top:8px}
+.tbl-wrap{overflow:auto;max-height:470px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;font-size:12px;font-weight:700;padding:12px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel-solid)}
+td{padding:11px 16px;border-bottom:1px solid rgba(160,185,210,.07)}
+tr.click{cursor:pointer}
+tr.click:hover td{background:rgba(142,163,90,.08)}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px}
+.chip i{width:22px;height:22px;border-radius:50%;border:1px solid currentColor;display:grid;place-items:center;font-style:normal;font-size:11px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;padding:12px 16px;border-top:1px solid var(--line);font-size:12px;font-weight:600}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend span::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.aho{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr)}
+.aho-left{border-right:1px solid var(--line);display:flex;flex-direction:column}
+.kv{display:grid;grid-template-columns:1fr auto;align-items:center;gap:10px;padding:14px 18px}
+.kv .k{font-size:13px;line-height:1.3}
+.kv .k b{display:block;font-weight:600}
+.kv .v{font-size:22px;border-left:1px solid var(--line2);padding-left:14px;min-width:110px}
+.trio{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:16px 18px;border-top:1px solid var(--line);margin-top:auto}
+.trio .v{font-size:28px;margin-top:6px}
+.chart{min-height:260px;padding:10px 8px 6px;position:relative}
+.chart svg{display:block;width:100%}
+.ax{fill:var(--muted);font:600 10px var(--f-num)}
+.grid-l{stroke:rgba(160,185,210,.1)}
+.vgrid{stroke:rgba(142,163,90,.35)}
+
+/* ALARM */
+.heat{min-width:760px}
+.heat th,.heat td{text-align:center;padding:10px 6px;font-size:11px}
+.heat th:first-child,.heat td:first-child{text-align:left;padding-left:12px;font-weight:700;font-size:12px}
+.heat td.cell{color:#0b1830;font-weight:700;font-family:var(--f-num);border:1px solid rgba(0,0,0,.25);cursor:pointer}
+.heat td.hot{color:#fff}
+.trend-up{color:var(--crit);font-weight:700}
+.trend-dn{color:var(--ok);font-weight:700}
+.amo{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,1.2fr)}
+.amo>*+*{border-left:1px solid var(--line)}
+.donut-wrap{padding:14px;display:flex;flex-direction:column;align-items:center}
+.types{max-height:440px;overflow:auto}
+.type{display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:14px 16px}
+.type:hover{background:rgba(255,255,255,.04)}
+.type[aria-pressed="true"]{background:linear-gradient(90deg,rgba(255,255,255,.16),rgba(255,255,255,.05));box-shadow:inset 3px 0 0 var(--c)}
+.type b{display:block;font-size:12px;font-weight:600}
+.type .v{font-size:24px;margin-top:4px}
+.type .q{font-size:12px;font-weight:600;text-align:right}
+.detail{padding:18px 20px;display:grid;gap:18px;align-content:start}
+.detail h3{margin:0;font-size:16px}
+.sev{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.sev div{padding:10px 12px}
+.sev div+div{border-left:1px solid var(--line2)}
+.sev b{font-size:12px;display:block}
+.sev .v{font-size:20px;margin-top:4px}
+.kv2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.kv2 .v{font-size:22px;margin:4px 0}
+.kv2 small{color:var(--muted);font-size:11px}
+.bar-mini{height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:6px}
+.bar-mini i{display:block;height:100%;background:var(--c,var(--olive))}
+
+/* ACTIONABLE */
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.hours{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12px;font-weight:600}
+.hours input[type=time]{background:transparent;border:1px solid var(--line2);border-radius:6px;padding:5px 8px;color:#fff}
+.hours .lg{margin-left:auto;display:flex;gap:16px}
+.hours .lg span{display:inline-flex;align-items:center;gap:6px}
+.hours .lg span::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--c)}
+.reco{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:16px}
+.reco article{border:1px solid var(--line2);border-radius:10px;padding:14px;background:rgba(0,0,0,.2);display:flex;flex-direction:column;gap:8px}
+.reco h4{margin:0;font-size:14px}
+.reco p{margin:0;font-size:12px;color:var(--muted);line-height:1.45;flex:1}
+.reco .meta{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.tag{font-size:10px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:3px 8px;border-radius:10px;border:1px solid currentColor}
+.reco .act{background:transparent;border:1px solid var(--olive);color:var(--olive-hi);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600}
+.reco .act[disabled]{border-color:var(--ok);color:var(--ok);cursor:default}
+
+/* COMMS */
+.comms{display:grid;grid-template-columns:240px minmax(0,1fr) 280px;min-height:520px}
+.comms>*+*{border-left:1px solid var(--line)}
+.chan{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:12px 14px}
+.chan[aria-pressed="true"]{background:rgba(142,163,90,.14);box-shadow:inset 3px 0 0 var(--olive)}
+.chan b{display:flex;justify-content:space-between;font-size:13px}
+.chan small{color:var(--muted);font-size:11px}
+.chan .unread{background:var(--olive);color:#111;border-radius:9px;font-size:10px;padding:1px 6px}
+.thread{display:flex;flex-direction:column;min-width:0}
+.msgs{flex:1;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:12px;max-height:440px}
+.msg{max-width:78%;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:10px;padding:9px 12px;font-size:13px;line-height:1.4}
+.msg .who{font-size:11px;font-weight:700;color:var(--olive-hi);margin-bottom:3px;display:flex;gap:8px}
+.msg .who time{color:var(--dim);font-weight:500}
+.msg.me{align-self:flex-end;background:rgba(58,123,253,.18);border-color:rgba(58,123,253,.35)}
+.msg.me .who{color:var(--blue-hi)}
+.msg.sys{align-self:center;background:rgba(239,62,62,.12);border-color:rgba(239,62,62,.4);font-size:12px}
+.compose{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+.compose input{flex:1;min-width:0;background:rgba(0,0,0,.3);border:1px solid var(--line2);border-radius:20px;padding:9px 14px;outline:none}
+.side h4{margin:0;padding:12px 14px;font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+.unit{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px}
+.unit b{display:block;font-size:13px}
+.unit small{color:var(--muted)}
+.call{background:none;border:1px solid var(--line2);border-radius:50%;width:30px;height:30px;display:grid;place-items:center;flex:none}
+.call svg{width:14px;stroke:var(--olive-hi);fill:none;stroke-width:2}
+.call.live{background:var(--ok);border-color:var(--ok)}
+.call.live svg{stroke:#04220f}
+
+/* overlays */
+.pop{position:fixed;z-index:40;top:calc(60px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:min(360px,calc(100vw - 32px));background:var(--panel-solid);border:1px solid var(--line2);border-radius:12px;box-shadow:0 20px 50px rgba(0,0,0,.5);overflow:hidden}
+.pop h4{margin:0;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px;display:flex;justify-content:space-between}
+.pop h4 button{background:none;border:0;color:var(--olive-hi);font-size:11px}
+.note{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);font-size:12px;width:100%;text-align:left;background:none;border-left:0;border-right:0;border-top:0}
+.note:hover{background:rgba(255,255,255,.04)}
+.note i{width:8px;height:8px;border-radius:50%;margin-top:5px;flex:none;background:var(--c)}
+.note small{display:block;color:var(--dim);margin-top:2px}
+.note.read{opacity:.55}
+.menu-item{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:11px 14px;font-size:13px}
+.menu-item:hover{background:rgba(255,255,255,.05)}
+.modal-bg{position:fixed;inset:0;z-index:50;background:rgba(3,6,10,.7);display:grid;place-items:center;padding:20px}
+.modal{width:min(620px,100%);max-height:80vh;overflow:auto;background:var(--panel-solid);border:1px solid var(--line2);border-radius:14px}
+.modal .ph h2{font-size:14px}
+.modal .body{padding:16px 18px;font-size:13px;line-height:1.55}
+.modal .body table{margin-top:10px}
+.x{background:none;border:0;font-size:20px;color:#aaa;line-height:1}
+.ai-q{color:var(--muted);font-size:12px;margin-bottom:8px}
+.typing::after{content:"▋";animation:blink 1s infinite;color:var(--olive-hi)}
+@keyframes blink{50%{opacity:0}}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:60;background:#1f2a1a;border:1px solid var(--olive);color:#e8f0d8;padding:10px 18px;border-radius:24px;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.kfs{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:flex-end}
+.kfs div{display:flex;flex-direction:column}
+.kfs b{font-size:22px;font-weight:600;color:var(--olive-hi)}
+.kfs span{font-size:11px;color:var(--muted)}
+.kfs small{font-size:10px;color:var(--dim);flex-basis:100%;text-align:right}
+.codes{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;padding:16px}
+.code{text-align:left;background:rgba(0,0,0,.22);border:1px solid var(--line2);border-top:3px solid var(--c);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.code:hover{border-color:var(--c)}
+.code b{font-size:13px;color:var(--c)}
+.code span{font-size:12px;color:var(--muted)}
+.code .v{font-size:26px;margin-top:6px}
+.code small{font-size:11px;color:var(--dim)}
+@media (max-width:980px){.codes{grid-template-columns:repeat(2,minmax(0,1fr))}.kfs small{text-align:left}}
+.demo-tag{line-height:1.5;font-size:10px;color:var(--dim);text-align:center;padding:14px 0 0}
+
+@media (max-width:980px){
+  .home-grid,.two,.aho,.amo,.comms{grid-template-columns:1fr}
+  .two>*+*,.amo>*+*,.comms>*+*{border-left:0;border-top:1px solid var(--line)}
+  .aho-left{border-right:0;border-bottom:1px solid var(--line)}
+  .glance-row,.reco{grid-template-columns:1fr}
+  .map-panel{min-height:540px}
+}
+@media (max-width:560px){
+  .user b,.user small{display:none}
+  .blur-tg>span:first-child{display:none}
+  .tiles{grid-template-columns:1fr 1fr}
+  .tile{min-height:150px}
+  .tile .tic{width:48px;height:48px}
+  .thumb{width:96px;height:96px}
+  .ask{flex:1 1 100%}
+  .sev{grid-template-columns:1fr 1fr}
+  .sev div:nth-child(3){border-left:0}
+  .sev div:nth-child(n+3){border-top:1px solid var(--line2)}
+  .map-stage{min-height:280px}
+  .loc-search input{width:160px}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+
+<canvas id="net" aria-hidden="true"></canvas>
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="wrap">
+      <img class="logo" src="data:image/png;base64,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" alt="RAMsys Eye">
+      <div class="spacer"></div>
+      <button class="blur-tg" id="blurBtn" aria-pressed="false" title="Blur sensitive figures"><span>BLUR</span><span class="sw"><span>OFF</span></span></button>
+      <button class="icon-btn" id="bellBtn" aria-label="Notifications"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="badge" id="bellCount">4</span></button>
+      <button class="user" id="userBtn" aria-label="Account menu">
+        <span class="avatar"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#111"/><circle cx="12" cy="9.5" r="3.6" fill="#fff"/><path d="M5.5 18.5c1.4-2.8 3.8-4 6.5-4s5.1 1.2 6.5 4" fill="#fff"/></svg></span>
+        <span><b>executive Moha...</b><small>Executive</small></span>
+      </button>
+      <button class="caret" id="caretBtn" aria-label="Account menu"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <div class="wrap">
+      <div class="navs" role="tablist" id="navs"></div>
+      <form class="ask" id="askForm" role="search">
+        <svg class="dot-logo" viewBox="0 0 20 20"><path d="M2 7V5a3 3 0 0 1 3-3h2" stroke="#2c8a4b" stroke-width="2" fill="none"/><path d="M13 2h2a3 3 0 0 1 3 3v2" stroke="#c04a52" stroke-width="2" fill="none"/><path d="M2 13v2a3 3 0 0 0 3 3h2" stroke="#1765b8" stroke-width="2" fill="none"/><path d="M13 18h2a3 3 0 0 0 3-3v-2" stroke="#f28b37" stroke-width="2" fill="none"/><circle cx="10" cy="10" r="3.5" fill="#ef3838"/></svg>
+        <input id="askIn" placeholder="Ask RAMsys (e.g. crowd alarms at Al Kout)" aria-label="Ask RAMsys">
+        <svg class="mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5"/></svg>
+        <button class="btn-olive" type="submit">Search</button>
+      </form>
+    </div>
+  </nav>
+
+  <main class="wrap" id="main"></main>
+</div>
+<div id="layer"></div>
+
+<script>
+const GEO = {"prov":{"kw-ja":{"name":"Al Jahrah","d":"M685.1,86.6L748.8,171.9L755.2,188L753.1,208.3L746,222.2L734.4,238L720.2,251.5L705.7,259.2L688.6,257.8L678.8,246.5L664.1,214.1L646.9,185L642.3,179.7L634.3,175.3L631.2,170.6L657.2,152.6L659.1,136.9L652.8,134.6L645.6,134.4L649.3,127.6L654.9,128L664.7,133.9L674.5,133.9L677.6,130.8L675.1,123.8L687.9,116.8L689.2,112.7L682.7,108.5L678.3,108L673.1,110.5L667.5,105.9L666.2,93.2L659.3,93.5L656.9,91.6L658.4,88.3L668.9,81.9L674.5,81.4L679.9,82.9L685.1,86.6ZM623.3,93.9L617.5,92.8L614.5,86.9L619.8,83.1L627.6,72.1L631.9,69.5L647.2,67L653.3,67.4L652.2,72.1L641.6,78.5L633.9,88L623.3,93.9ZM403,548L398,539.8L217.3,519.5L40,500.3L109.9,420.1L134,378.2L158.9,350L164.6,341.1L175.8,310.3L204.5,261.1L211.9,244.1L214.1,225.9L216,219.4L229.9,192.3L261.8,106.5L274.9,87.1L295.2,72.9L357.9,45.5L380.4,42.2L481.8,40L504.3,43.9L590.4,84.3L593.4,91.8L601.7,107.3L603.7,116.8L604,133.5L605.6,144.2L611,158.9L621.9,180.3L634.4,196.6L644.8,195.9L652.1,215.8L661.7,235.7L679,259.2L687.2,276.8L685.8,285.9L677.1,287.5L660.7,280.9L652.3,276.1L649.6,272L625,268.2L602.1,272.6L590.7,283L581,293.3L557.1,307.3L540.8,323.2L532.4,337.2L524.4,348.3L506.6,357.2L505.1,364.3L501.5,371L510.3,371.6L535.8,366.3L553.6,359.1L559.2,362.2L548.1,370.1L548.3,375.5L545.9,381.8L555.7,388.1L562.7,387.8L563.2,389.3L565.3,393.7L557.9,395.1L556.7,413.7L534.6,442.5L531.9,503.3L530.5,509.3L521.4,512.6L433.1,527.2L414,541.1L403,548Z"},"kw-ku":{"name":"Al Asimah","d":"M767.8,332.4L771.1,336.4L775.6,348.6L774.9,353.1L765.2,350.5L761.3,348.1L750.2,338.9L742.6,336.2L732.1,334.9L723.7,335.5L723.7,323.7L727.9,316.8L734.7,315.6L750.5,319.8L756.8,322.1L764.6,328.4L767.8,332.4ZM562.7,387.8L578.7,382L580.8,371.1L586.6,368.4L594.3,370.7L602,364.7L606,357.9L612.2,354.8L615.1,357.3L621.5,365.6L610.3,374L615.3,383.3L582.7,388.4L565.3,393.7L563.2,389.3L562.7,387.8Z"},"kw-fa":{"name":"Al Farwaniyah","d":"M556.7,413.7L557.9,395.1L565.3,393.7L582.7,388.4L615.3,383.3L622.4,398.9L628.7,412.8L633.6,437.7L571.6,450L570.7,430.9L564.6,421.3L556.7,413.7Z"},"kw-ah":{"name":"Al Ahmadi","d":"M661.9,434.8L665.5,443.9L671.3,452.5L673.6,461.5L685,522.8L692.4,537.7L713,566.7L719.1,572.3L734.5,576.9L735.9,583.7L734.4,592.6L734.2,601.7L737.7,610.5L749,625.5L755.8,637.1L765.3,640.7L781.8,643.8L778.1,650.9L776.7,658.9L777.3,667.1L779.9,674.7L771.6,668.8L771.7,674.6L777.3,678.1L772.6,683.2L766.6,681.2L766.4,690.7L770.2,692.8L775.6,689.9L780.2,684.2L781.4,688.8L783.7,710.5L788.7,722L800,734.9L495.5,745.8L491.9,733.9L484.3,726.3L475,720.1L466.4,712.4L460.1,702.4L454.4,689.2L450.3,675.5L448.2,651.2L446.1,639.9L422.9,580.2L403,548L414,541.1L433.1,527.2L521.4,512.6L530.5,509.3L531.9,503.3L534.6,442.5L556.7,413.7L564.6,421.3L570.7,430.9L571.6,450L633.6,437.7L658.5,435.4L661.9,434.8Z"},"kw-1922":{"name":"Mubarak Al-Kabeer","d":"M633.6,437.7L628.7,412.8L622.4,398.9L638.8,398.5L655.9,391.3L655.5,401.7L657.1,415L661.9,434.8L658.5,435.4L633.6,437.7Z"},"kw-hw":{"name":"Hawalli","d":"M622.4,398.9L615.3,383.3L610.3,374L621.5,365.6L628.2,371.9L643.4,376.7L657.9,373.3L655.9,391.3L638.8,398.5L622.4,398.9Z"}},"pts":{"m360":[625.8,395.3],"kout":[676.7,493.7],"khiran":[773.9,676.4],"warehouse":[656.8,484],"samaSal":[648.2,380.4],"samaJah":[488,379.8],"samaKha":[609.3,408.4],"samaSul":[567.3,389.2],"tamdeen":[647.1,416.5],"farm":[652.2,412.3]},"nb":{"SA":"M-3888,2076.4L-3898.4,2075.7L-3926.1,2043.2L-3941,2019.4L-3957.9,2003.3L-4034.4,1967.6L-4045,1947.2L-4030.4,1928.3L-4024.3,1948.5L-4010.2,1960.5L-3946.8,1992.9L-3877.9,2057.2L-3864.9,2063.6L-3888,2076.4ZM-1873.2,6070.6L-1840.4,6073.4L-1854.2,6058.3L-1857.2,6051.2L-1841.3,6031.1L-1795,6074.8L-1797.3,6124.9L-1800.6,6136.5L-1813,6125.4L-1822.2,6115.1L-1825.2,6103.3L-1837.5,6090.6L-1884.5,6097.8L-1912.5,6084L-1954,6040.3L-1964.4,6009.6L-1947.1,6003.7L-1928.2,5989.1L-1916.8,5965L-1927.4,5939.8L-1902.5,5944.1L-1888.8,5970.2L-1888.2,6028.9L-1883.7,6041.4L-1891.7,6054.6L-1873.2,6070.6ZM2427.7,4994.1L2326,5012.2L2228.8,5030.1L2119.4,5049.8L1986.7,5073.2L1883.4,5090.8L1732.3,5117.5L1596.5,5140.3L1470,5161.8L1341.9,5183.1L1233.9,5201.4L1169.3,5220.9L1094.3,5260.9L977.8,5323.6L859.5,5386.9L799.6,5419.3L735.8,5501.8L703.8,5543L644.4,5618.2L600.1,5675.2L548.1,5742.4L525.6,5802.9L490.9,5894.9L460,5918.7L408.9,5949L362.3,5970.7L289,5969.1L247.8,5912.4L202.1,5853.4L180.1,5829.4L161.4,5828L88.2,5836.4L-0.5,5846.5L-103.3,5836.9L-223.3,5825.8L-335.4,5816L-391.5,5808.3L-464.7,5769.4L-483.3,5761.6L-503.6,5760.1L-589.1,5758.5L-676.2,5757.7L-763.3,5770L-845.8,5765.1L-931.4,5771.8L-962.6,5786.5L-995.2,5785.5L-1017.1,5798.7L-1034.3,5804.9L-1057.5,5793L-1084,5796L-1122.9,5785.6L-1149.1,5760.4L-1172.3,5737.5L-1197.1,5724.8L-1225,5717.6L-1249.9,5716.6L-1281.1,5730.4L-1299.9,5743.5L-1348.6,5786.9L-1350.3,5802.5L-1328.7,5828.5L-1336.6,5840.9L-1364.8,5856.3L-1373,5897.6L-1377.9,5920.3L-1383.1,5974.2L-1371,6017.3L-1354,6033.1L-1352.6,6051.8L-1362.3,6088.5L-1389,6099.2L-1408.1,6134.2L-1420.7,6150.5L-1441.2,6169L-1523.2,6229.9L-1527.5,6193.9L-1552,6140.5L-1553.1,6102.2L-1565.2,6064.5L-1586.7,6035.3L-1626.9,6005.1L-1631.1,5963.6L-1660.2,5922.6L-1698.8,5889.2L-1721.4,5828.7L-1735.8,5747.9L-1838.5,5640.8L-1967.4,5541.6L-2006.8,5485.3L-2069.9,5372.2L-2100.8,5283.1L-2185.4,5179.6L-2187.6,5140.4L-2200.5,5092.3L-2219.4,5038.7L-2229.3,4996.1L-2313,4810.1L-2340,4780.5L-2363.6,4738.4L-2369,4706.9L-2376.2,4689.5L-2435.4,4657.4L-2491.8,4578.3L-2658.6,4450.4L-2742.6,4436.1L-2807.2,4390.1L-2854.4,4330.5L-2903.1,4229.9L-2991.1,4120L-3061.8,3964.9L-3035.4,3910.1L-3035.4,3871.6L-3057.3,3804.8L-3081.2,3753.6L-3097.6,3705L-3079.7,3636.5L-3072.1,3559.8L-3055.4,3519.5L-3043,3475.2L-3053,3384.4L-3076.8,3335.5L-3072.5,3303.5L-3100.5,3286.6L-3123.2,3250.3L-3099.1,3252.1L-3140.8,3201.6L-3156.2,3174.2L-3169.9,3107.5L-3188.8,3056.4L-3251.3,2938.7L-3281.2,2867.3L-3350.4,2774.3L-3426.5,2703.7L-3474.4,2671.4L-3496.9,2642.6L-3538.7,2638.9L-3581.5,2597.3L-3612.9,2594.8L-3651.4,2586.5L-3693.5,2507.6L-3728.4,2434.7L-3788.7,2338.1L-3770.9,2314.7L-3749.3,2276.5L-3755.3,2224.8L-3763.7,2189.6L-3788.2,2124.2L-3873.4,1959.6L-3897.2,1935.2L-3935.4,1905.9L-3954.7,1835.1L-3962.5,1773L-4025.5,1738.8L-4119.4,1509.4L-4178.6,1426.9L-4199.8,1373.1L-4266.8,1281.9L-4295.5,1193.4L-4364.1,1109L-4417.6,967.6L-4504,822.6L-4544.1,795.5L-4643.5,777.6L-4686.2,763.7L-4727.9,790.3L-4727.6,752.1L-4695.4,701.6L-4648.3,594.4L-4631.2,498L-4546,216.1L-4462.6,237.5L-4393.5,256L-4293.2,282.5L-4188.6,309.1L-4127.8,324.9L-4107.4,321.7L-4016.2,258.2L-3934.2,200.2L-3882.9,126.4L-3833.3,54.1L-3812.2,39.8L-3743,31.3L-3633.5,16L-3525.6,1.1L-3518,-5.5L-3488.5,-64.3L-3452.4,-138.5L-3444.8,-145.9L-3437.2,-153.3L-3358.2,-191.6L-3311.4,-214.7L-3371.4,-295L-3428.6,-371.3L-3492,-456.9L-3545.2,-523.7L-3626.7,-624.3L-3678.1,-690.5L-3576.9,-712.4L-3467.2,-736.3L-3356.3,-761.1L-3223,-791.1L-3119.6,-814.6L-2964.1,-850.3L-2889.4,-868.1L-2875.2,-872.8L-2815.4,-923L-2730.4,-903.5L-2602.7,-874.2L-2479,-847.1L-2348.4,-816.1L-2306.3,-793.2L-2183,-712.8L-2101.5,-660.3L-2007.5,-599L-1888.6,-523.7L-1807.8,-471.9L-1701.9,-405.5L-1621.2,-331.3L-1516.8,-237.2L-1403.7,-134.7L-1309.4,-54.7L-1178.5,54.6L-1048.3,161.9L-921.8,267.1L-818.7,350.8L-689.7,456.2L-678.3,460.1L-547.3,472L-369.2,488L-191,502.5L-29.7,515.8L39.9,500.1L115.6,508.5L218.5,520.1L280,527.7L397.4,541.9L434.5,610L448.4,657.5L460.9,704.2L496.2,745.7L576.5,743.1L646.7,740.6L734.1,736.7L804.4,734L827.1,775.6L838.4,817.6L883.1,916.7L944.6,993.2L958.4,1021L969.9,1063.8L960.3,1080.5L956.5,1098.7L1001.3,1140.4L1076.2,1174.1L1104.1,1182.6L1136.5,1197.9L1112.7,1223.1L1158.2,1279.6L1209.6,1335.8L1263.8,1347.2L1339.9,1433.1L1449.9,1486.2L1520.1,1558.8L1514.3,1560.6L1493.5,1553.6L1469.8,1544.3L1462.8,1554L1464.1,1585.4L1472.8,1621.9L1507.8,1652.8L1539.4,1674.3L1552.9,1717.7L1531.7,1812.8L1524.4,1812.3L1507.9,1805.1L1490.2,1804.2L1481.6,1810.1L1504.8,1876.7L1526,1927.7L1552.6,1967.5L1575.6,2027.1L1592.8,2051.5L1667.8,2112.9L1690.6,2165.4L1715.5,2264.1L1762.2,2317.2L1789.3,2359.3L1823.5,2394L1846.4,2442.6L1877.8,2479.7L1894.6,2488.4L1917.1,2491.4L1946.8,2490.1L1980.6,2479.1L2017.4,2468L2048.1,2485.5L2077.7,2481.8L2081.6,2499.7L2063.3,2524.9L2040.8,2587.3L2077.1,2595.9L2110.1,2599.1L2136,2608.1L2149.4,2607.5L2150,2620L2154.3,2678.9L2164.3,2700.4L2180.2,2719.4L2204,2748.2L2227.9,2776.9L2253.3,2805.6L2277.2,2833.6L2301.2,2862.4L2326.7,2891.1L2350.6,2919.1L2374.6,2947.8L2398.7,2976.6L2424.2,3005.2L2448.3,3033.2L2472.4,3061.9L2498,3090.6L2522.1,3119.3L2546.2,3147.3L2570.4,3176L2591.3,3199.4L2626.3,3202.3L2638.5,3203.2L2670.4,3205.5L2719.2,3210L2784.7,3214.3L2860.9,3220.4L2946.3,3226.6L3037.9,3233.2L3132.6,3240.2L3227.4,3247.1L3317.6,3253.3L3403.4,3259L3481.5,3264.2L3546,3268.7L3596.6,3271.6L3628.8,3273.4L3639.5,3274.3L3673.3,3276.7L3679.3,3274.7L3705.7,3236.4L3739.7,3285.6L3768.6,3326.5L3807.8,3383.4L3850.3,3443.2L3891.2,3500L3920.4,3543.3L3909.8,3590.2L3898,3641.9L3886.1,3692.8L3872.7,3744.6L3860.8,3796.3L3848.8,3848L3836.8,3899.7L3824.7,3950.6L3811.1,4002.3L3799,4053.9L3786.8,4105.6L3774.6,4156.4L3762.3,4208L3750.1,4259.6L3736.2,4311.3L3723.8,4362.1L3711.4,4413.6L3696.5,4475.6L3650.9,4494.2L3579.6,4524.6L3506.7,4555L3433.8,4585.2L3360.8,4616.2L3287.8,4646.2L3216.4,4676.1L3143.3,4706L3070.2,4735.8L2997.1,4765.4L2923.9,4795L2852.3,4824.4L2779,4853.8L2705.8,4883.1L2632.5,4912.3L2560.7,4941.4L2487.4,4970.4L2427.7,4994.1ZM-4004.5,1918.9L-4009.4,1924.9L-4026.1,1907.3L-4022.3,1872.7L-4006.3,1854L-4009.5,1880.6L-4003.9,1908.7L-4004.5,1918.9Z","IQ":"M-1521.2,-3123.6L-1485.8,-3131.3L-1419.4,-3184.5L-1380.5,-3233.7L-1368.7,-3238.1L-1335.4,-3220.9L-1310.8,-3215.7L-1253.3,-3234L-1221.1,-3223.2L-1192.8,-3209.4L-1177.2,-3208.3L-1102.4,-3175.7L-1083,-3171.5L-1044.1,-3167L-986.9,-3164.7L-949,-3184.6L-922.8,-3204.7L-903.4,-3203.7L-886.6,-3198.8L-871.1,-3190.1L-858.2,-3175.1L-853.2,-3153.9L-855,-3085.7L-850,-3067.7L-839.7,-3054.3L-826.7,-3051.8L-810.9,-3066.6L-783.4,-3088.3L-749.4,-3111.6L-723.3,-3132.7L-709,-3140.4L-685.6,-3139.6L-663.5,-3135.6L-651.8,-3125.4L-651.8,-3122.2L-640.1,-3090.1L-610.4,-2970.1L-593.4,-2955.2L-573.8,-2942.7L-559.4,-2924.7L-554.1,-2906.7L-555.4,-2879.2L-555.4,-2847.1L-547.6,-2822.8L-535.7,-2804L-525.2,-2794.6L-509.5,-2793.9L-491.1,-2789.2L-479.2,-2770.4L-438,-2634.3L-433.9,-2617L-416.8,-2611.6L-389,-2614.1L-361.2,-2600.1L-329.4,-2578.4L-301.4,-2537.1L-281.5,-2530.2L-220.7,-2537L-137.2,-2531.6L-98.6,-2510.2L-102.4,-2497.6L-132.7,-2482.3L-184.2,-2464.5L-199.8,-2434.6L-208.7,-2396.9L-207.1,-2375.7L-193.6,-2352.4L-155.9,-2305.8L-153,-2289.3L-146.1,-2265.9L-139.2,-2249.5L-146.9,-2218.1L-180,-2196.6L-225.2,-2172.7L-314,-2068.5L-320.6,-2045.8L-320.2,-1984.7L-329.5,-1966.6L-357.7,-1967.2L-380.5,-1970.2L-380.4,-1948.3L-395.1,-1920.1L-403,-1895L-369.1,-1836.4L-363.5,-1805.1L-368.8,-1776.9L-399.6,-1727.4L-417.1,-1694.4L-413,-1687.4L-388.6,-1674.2L-312,-1566.5L-288.7,-1529.1L-256.1,-1539.5L-243.9,-1538.8L-234.4,-1532.6L-228.8,-1520.2L-228.7,-1503.7L-236.6,-1479.4L-195.7,-1470.3L-180.5,-1445.4L-131.9,-1362.1L-134.4,-1337L-155.8,-1297.6L-155.5,-1271L-151.2,-1247.6L-144.3,-1239L-73,-1236.7L-42.8,-1227.7L30.4,-1185.6L115.2,-1121.2L184.9,-1068.4L244.9,-1024.1L306.8,-1028.5L324.9,-1020.3L340.3,-1006.5L359.1,-969.3L396.9,-884.8L428,-856.5L476.8,-789.5L522.8,-726.4L495.8,-638.7L470.3,-547.2L473.1,-430.5L474.6,-367.8L534.8,-367L603.5,-365.7L605.5,-290.5L607.5,-215.3L611.2,-129.2L631,-125.8L663.9,-108.6L677.4,-80.8L696.1,-66.4L715.9,-64.7L737.5,-51.2L757.9,-26.7L765.6,-8.1L760.3,4.6L765.2,27.2L780.3,59.7L799.1,74L825.2,92L790.1,104.1L750.3,96.6L665.8,61.4L638.9,60.6L604,76.4L602.9,88.9L512.8,48.9L481.5,41L470.2,40.5L419.4,42.4L347.5,51L305.5,69.1L276.2,88.4L263.8,106.7L258.3,116.2L236.6,169L210.9,237.6L185,299.1L132.3,385.3L103,425.7L39.9,500.1L-29.7,515.8L-191,502.5L-369.2,488L-547.3,472L-678.3,460.1L-689.7,456.2L-818.7,350.8L-921.8,267.1L-1048.3,161.9L-1178.5,54.6L-1309.4,-54.7L-1403.7,-134.7L-1516.8,-237.2L-1621.2,-331.3L-1701.9,-405.5L-1807.8,-471.9L-1888.6,-523.7L-2007.5,-599L-2101.5,-660.3L-2183,-712.8L-2306.3,-793.2L-2348.4,-816.1L-2479,-847.1L-2602.7,-874.2L-2730.4,-903.5L-2815.4,-923L-2755.8,-973.3L-2771.2,-1022.9L-2811.7,-1016.5L-2851,-1006.8L-2868.9,-1083.4L-2839.4,-1091.2L-2861.4,-1190.8L-2883.1,-1293.7L-2903.4,-1393.3L-2924.8,-1494.6L-2814.6,-1552.7L-2731.5,-1596L-2615.1,-1656.6L-2504.5,-1716.1L-2399.8,-1772.3L-2283.1,-1835.3L-2180.5,-1891.3L-2087.8,-1912.6L-2066.9,-1930.6L-2021.9,-2012L-1984.3,-2081.3L-1981,-2097.6L-1977.2,-2197.9L-1967.3,-2315.3L-1953,-2377.6L-1929.6,-2432.4L-1909.5,-2472.5L-1906.8,-2510.1L-1908,-2548.6L-1924.3,-2608.1L-1943.1,-2669.2L-1938.2,-2727.9L-1933,-2759.1L-1919.3,-2808.8L-1895.6,-2844L-1872.4,-2865.9L-1786.3,-2886.4L-1736,-2898.8L-1665.8,-2961.6L-1625.4,-2998.8L-1567.4,-3058.3L-1525.7,-3101.8L-1521.4,-3117.4L-1521.2,-3123.6Z","IR":"M3969.5,1282.2L3936.1,1340.2L3882.7,1391.1L3856.4,1379L3838.7,1380.6L3799,1402.3L3769.8,1407.2L3718,1443.4L3670.7,1463.2L3636.7,1464.4L3624.6,1462.2L3615.5,1441.5L3614.9,1433.6L3637.3,1435.7L3710,1401.1L3800.3,1347.2L3807.3,1325.9L3789.7,1293.2L3793.5,1285.7L3855.2,1297.1L3919.9,1257.9L3976.4,1244.1L4006.4,1264.5L3969.5,1282.2ZM2649.7,-3368.7L2750.4,-3372.8L2788.5,-3386.9L2843.3,-3417L2884.7,-3436.4L2906.6,-3440.2L2927.5,-3454.3L2941.6,-3470.1L2968.7,-3573.9L2984.2,-3601L3041.4,-3664.5L3091.8,-3705.9L3143.8,-3743.6L3212.2,-3773.7L3306.5,-3783.1L3382.3,-3784.1L3424.8,-3789.3L3445.8,-3789.5L3460.9,-3794.5L3469,-3802.7L3474,-3847.3L3487.7,-3863.4L3511.9,-3879.2L3549.2,-3883.9L3593.9,-3892.8L3631.6,-3894.4L3681.4,-3884L3743.5,-3890.6L3783,-3899.1L3809.9,-3885L3829.6,-3865.2L3841.2,-3847.5L3845.9,-3822.5L3848.5,-3802.8L3855.9,-3796.6L3882.1,-3788.1L3918.2,-3784.2L3988.4,-3782.6L4054.6,-3771.7L4090.3,-3762.3L4140.1,-3747.6L4202.3,-3701.8L4224.3,-3696.9L4249.8,-3695L4266.5,-3699L4304.8,-3727.2L4343.7,-3716L4361.6,-3721.1L4401.3,-3740L4447.9,-3730.9L4566.3,-3689.2L4577.8,-3692.6L4589.2,-3687.9L4600.4,-3675.9L4609.5,-3660.3L4625.2,-3611L4663.6,-3579.7L4706.9,-3551.7L4755.7,-3540.8L4858.6,-3511.8L4905.1,-3482.8L4958.5,-3429L5023.1,-3356.7L5032.2,-3350.9L5166.8,-3375.6L5317.6,-3401.3L5341.6,-3372.8L5348.7,-3307.9L5365.2,-3243.9L5387.6,-3201.2L5394.8,-3159.2L5387.8,-3136L5382.5,-3110.6L5381.6,-3099.8L5404.3,-3087.4L5427.6,-3056.3L5438.5,-3008.4L5433.6,-2980.6L5438.4,-2960.2L5450.9,-2943.6L5462.7,-2914.6L5464.5,-2896.1L5455.5,-2875.8L5451.3,-2851.4L5446.7,-2821.3L5446.4,-2798.4L5430.7,-2784.3L5417,-2774.7L5423.1,-2746.4L5435.3,-2723.1L5448.2,-2695.9L5442,-2674.5L5439,-2651.2L5431.4,-2612.4L5440.5,-2582.9L5429.9,-2554.3L5414.5,-2528.9L5405.2,-2508.7L5406.8,-2482.1L5394.6,-2471.1L5372.2,-2445.5L5358.3,-2427.8L5334.4,-2419.9L5332.4,-2406.6L5337,-2395.1L5349,-2389.7L5368.2,-2365.9L5408.2,-2325.9L5316.2,-2305.6L5293.9,-2260.6L5271.4,-2198.5L5304.3,-2085.8L5298.4,-2023.9L5313.1,-1992L5340.1,-1972.6L5373.8,-1964.8L5431.8,-1973L5471.9,-1969.6L5478.5,-1955.1L5459.9,-1929.4L5430.6,-1880.9L5414.1,-1859.6L5367.6,-1765.5L5373,-1729.7L5383,-1701.1L5423.5,-1613L5462.1,-1527.7L5532.6,-1374L5538.1,-1337.4L5535.2,-1251.6L5542.7,-1201.4L5558.1,-1137L5558.9,-1102.1L5581.4,-1028.2L5595,-1024.5L5699.1,-1025.4L5793.3,-1025.8L5919.5,-1026.5L5964.8,-987.8L6002.8,-894L6012.8,-820.3L6008.7,-781.2L5934.9,-660.5L5860.8,-538.4L5786.1,-417.3L5698.8,-277.8L5788,-199.3L5843.7,-150.2L5921.6,-81.5L5932.9,-64.4L5937.4,-33.2L6022.9,76.1L6056.7,134.9L6083.8,167.8L6146.2,217.6L6208.6,265.8L6271,282.9L6311.5,282.7L6406.9,298.1L6442.8,317.3L6504.8,368.8L6567,351.2L6580.2,349.2L6583.8,352.8L6588.2,371.8L6593.3,465.6L6625,556.1L6657.8,695L6657,719.8L6648.1,763L6650.4,789L6649.8,805.5L6653.9,812.3L6676.1,818.9L6720.2,818.2L6822.3,786.5L6834.8,788.7L6862.8,801.8L6884.6,824.9L6888,837.5L6865.9,863.1L6866.8,900.1L6882.6,954.5L6879.1,961.7L6858.5,977.9L6862.8,1058.8L6859.4,1066.7L6833.5,1078.7L6705.3,1092.4L6690.5,1096.2L6645.5,1124L6566.6,1150.7L6545.4,1162.7L6517.2,1191.3L6500.2,1223.1L6499.5,1251.1L6495.8,1257.3L6448.5,1258.1L6435.1,1283.6L6348.3,1331.4L6338.8,1340L6329,1369.9L6327.4,1450.2L6324.7,1522.5L6319.9,1532.9L6294.5,1561.6L6292.5,1570L6299.1,1596.9L6293.5,1648.2L6300.6,1787.8L6293.4,1827.8L6271.1,1833.9L6255.3,1855.5L6225,1883.8L6151.5,1874.2L6093.1,1861.8L5900.1,1838.9L5877.8,1818.8L5861.1,1781.8L5828.2,1775.2L5788.3,1838.4L5627.6,1823L5574.6,1839.6L5541,1825.7L5455.1,1833.7L5384.9,1805.2L5291.5,1840.5L5217,1853.4L5106.8,1801.5L4994.1,1795.6L4904.9,1810.4L4858,1810.4L4781,1794.8L4742.8,1775.4L4686.3,1798.6L4656.2,1768.7L4489.3,1754.4L4452.5,1698.6L4425,1646.8L4418.3,1591.4L4368.9,1497.7L4342.2,1358.6L4322.1,1304.6L4295.4,1259.1L4262.1,1221.6L4218.2,1181.8L4181.3,1167.7L4027,1148.6L3998,1156L3932.5,1183.5L3864.8,1238.1L3748.2,1275.3L3725,1297.9L3699.5,1347L3663.6,1377.9L3610.1,1375.1L3555,1407.4L3455.1,1492.4L3401,1519.6L3353.7,1521.6L3301,1489.1L3185.7,1448.5L3112.6,1437.9L3012.1,1456.1L2964.6,1450.7L2878.6,1399.6L2855.3,1359.3L2806.7,1334.9L2658,1282.1L2534.7,1207L2510.9,1177.7L2493.5,1132.2L2439.2,1079.4L2321.9,1040.7L2253.8,996.6L2177.9,989.8L2107.1,995.3L2076.2,988.4L2046.1,968.7L1944,874.1L1942,834.1L1877.9,739.8L1861.7,705.2L1843.9,609.3L1826.8,585L1763.2,548.1L1751.9,522.7L1764.5,487.4L1763.1,460.7L1729,438L1681.2,427L1668.4,397.8L1674.2,340.1L1665.2,303.5L1619.8,248.3L1555.8,191.6L1489.4,107.4L1464.3,86.6L1446.2,30L1420.5,-37.2L1386.4,-40.4L1221.6,48.2L1170.3,3.9L1020.5,-70.6L1008.8,-81.9L998.3,-99.6L1016.2,-111.2L1034.4,-115.8L1071.6,-103L1093.5,-120.3L1084,-147.5L1046.8,-162.6L996.2,-159.2L1011.2,-134.6L964.1,-109.4L955.4,-76.9L963.7,-38.8L969.8,15.9L950.9,42.5L937.2,55.5L873.7,60.7L844.8,85.9L825.2,92L799.1,74L780.3,59.7L765.2,27.2L760.3,4.6L765.6,-8.1L757.9,-26.7L737.5,-51.2L715.9,-64.7L696.1,-66.4L677.4,-80.8L663.9,-108.6L631,-125.8L611.2,-129.2L607.5,-215.3L605.5,-290.5L603.5,-365.7L534.8,-367L474.6,-367.8L473.1,-430.5L470.3,-547.2L495.8,-638.7L522.8,-726.4L476.8,-789.5L428,-856.5L396.9,-884.8L359.1,-969.3L340.3,-1006.5L324.9,-1020.3L306.8,-1028.5L244.9,-1024.1L184.9,-1068.4L115.2,-1121.2L30.4,-1185.6L-42.8,-1227.7L-73,-1236.7L-144.3,-1239L-151.2,-1247.6L-155.5,-1271L-155.8,-1297.6L-134.4,-1337L-131.9,-1362.1L-180.5,-1445.4L-195.7,-1470.3L-236.6,-1479.4L-228.7,-1503.7L-228.8,-1520.2L-234.4,-1532.6L-243.9,-1538.8L-256.1,-1539.5L-288.7,-1529.1L-312,-1566.5L-388.6,-1674.2L-413,-1687.4L-417.1,-1694.4L-399.6,-1727.4L-368.8,-1776.9L-363.5,-1805.1L-369.1,-1836.4L-403,-1895L-395.1,-1920.1L-380.4,-1948.3L-380.5,-1970.2L-357.7,-1967.2L-329.5,-1966.6L-320.2,-1984.7L-320.6,-2045.8L-314,-2068.5L-225.2,-2172.7L-180,-2196.6L-146.9,-2218.1L-139.2,-2249.5L-146.1,-2265.9L-153,-2289.3L-155.9,-2305.8L-193.6,-2352.4L-207.1,-2375.7L-208.7,-2396.9L-199.8,-2434.6L-184.2,-2464.5L-132.7,-2482.3L-102.4,-2497.6L-98.6,-2510.2L-137.2,-2531.6L-220.7,-2537L-281.5,-2530.2L-301.4,-2537.1L-329.4,-2578.4L-361.2,-2600.1L-389,-2614.1L-416.8,-2611.6L-433.9,-2617L-438,-2634.3L-479.2,-2770.4L-491.1,-2789.2L-509.5,-2793.9L-525.2,-2794.6L-535.7,-2804L-547.6,-2822.8L-555.4,-2847.1L-555.4,-2879.2L-554.1,-2906.7L-559.4,-2924.7L-573.8,-2942.7L-593.4,-2955.2L-610.4,-2970.1L-640.1,-3090.1L-651.8,-3122.2L-651.8,-3125.4L-650.5,-3131.6L-654.3,-3159.1L-640,-3182.5L-641.2,-3191.9L-669.7,-3222.6L-709.8,-3252.5L-720.1,-3258L-720,-3290.2L-718.6,-3314.4L-722.4,-3336.4L-730.1,-3349L-730,-3358.4L-714.4,-3381.8L-724.7,-3397.5L-782.5,-3436.3L-804.3,-3455.2L-844.2,-3459.4L-849.2,-3472L-842.5,-3498.6L-828.1,-3530.6L-806.1,-3562.6L-798.2,-3579L-790.3,-3607.9L-787.6,-3628.3L-763.1,-3656.4L-761.8,-3664.2L-769.4,-3674.4L-788.6,-3680L-809,-3682.5L-815.4,-3688.1L-819.1,-3703L-816.1,-3764.9L-822.2,-3802.5L-829.6,-3830L-824,-3891.1L-837.9,-3903L-859.2,-3935.3L-867.8,-3962.8L-862.7,-3973L-858.7,-3990.2L-854.7,-4013.7L-855.8,-4030.1L-875.9,-4046.8L-889.6,-4064.2L-892,-4083L-896.8,-4105.8L-905.4,-4123.9L-909.1,-4135.7L-901.5,-4142.7L-873.7,-4147.9L-833.3,-4144.4L-799.3,-4143.3L-780.3,-4155L-756.9,-4265.3L-735.4,-4294.2L-710.2,-4311.3L-662.7,-4272L-642.6,-4257.8L-630,-4257.8L-623.8,-4247.6L-567.2,-4155L-542,-4127.6L-526.8,-4104.9L-516.7,-4079L-500.2,-4061L-477.4,-4051.7L-448.2,-4026.7L-429.2,-4007.2L-397.3,-3967.4L-364.2,-3951.9L-242.1,-3923.9L-173.4,-3911.3L-154.3,-3907.6L-102.4,-3927.9L-41.4,-3925.7L-18.6,-3925.3L61.1,-4009.1L84.6,-4037.8L132.4,-4053L158.2,-4086.5L200.2,-4126.7L252.3,-4165.6L299.3,-4200.6L336.5,-4222.1L401.7,-4271.9L442.7,-4289.7L479.1,-4290.1L535.1,-4236.3L582.3,-4186.9L596.9,-4165.5L574.9,-4145L532.7,-4123.9L525.6,-4109.5L523.7,-4091.4L525.6,-4074.2L532.4,-4060.3L585.5,-4029.2L592.4,-4011.4L593.1,-3993.4L587.2,-3981.4L576,-3974.7L539.5,-3964L509.4,-3952.8L498.3,-3941.4L489.8,-3928.6L491.5,-3915.3L501,-3899.9L567.3,-3859L574.3,-3843.6L587.8,-3822.8L604.8,-3810.1L631.7,-3807.9L644.8,-3799.8L709.1,-3722.9L724.7,-3718.1L796.9,-3738.3L807.2,-3737.9L809.3,-3718.4L824.3,-3606.7L835.7,-3549L849.7,-3493.1L872.5,-3442.2L897.9,-3394.6L931.6,-3365.4L1005.7,-3331.9L1041.2,-3323.3L1133.6,-3320.8L1226.5,-3309.1L1280.6,-3294.7L1298.1,-3283.8L1313.4,-3266.6L1362.4,-3182.7L1436.3,-3125.6L1585.6,-3042.5L1656.9,-3016.2L1895.5,-2974L2051.4,-2988.5L2472.3,-3135.2L2613.7,-3176.5L2667.4,-3181.6L2636.7,-3156.5L2584.3,-3138.2L2618.5,-3125.5L2668.5,-3127.7L2691.9,-3132.3L2707.6,-3148.1L2707.9,-3171.9L2703.1,-3195.3L2669.7,-3296.8L2649.7,-3368.7Z"},"vb":[0,0,840,786]};
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const h=(t,a={},...c)=>{const e=document.createElement(t);for(const k in a){if(k==='on')for(const ev in a.on)e.addEventListener(ev,a.on[ev]);else if(k==='html')e.innerHTML=a[k];else e.setAttribute(k,a[k])}c.flat().forEach(x=>x!=null&&e.append(x));return e};
+function rng(seed){let a=0;for(const ch of String(seed))a=(a*31+ch.charCodeAt(0))|0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const fmt=n=>n.toLocaleString('en-US');
+function toast(m){const t=h('div',{class:'toast',role:'status'},m);document.body.append(t);setTimeout(()=>t.remove(),2600)}
+const ICON={
+  ops:'<svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 16v-4M12 16V8M16 16v-6"/></svg>',
+  alarm:'<svg viewBox="0 0 24 24"><path d="M7 18v-5a5 5 0 0 1 10 0v5"/><path d="M5 21h14v-3H5zM12 3v2M4.5 6l1.5 1.5M19.5 6 18 7.5M2 12h2M20 12h2"/><circle cx="12" cy="14" r="1.2"/></svg>',
+  act:'<svg viewBox="0 0 24 24"><path d="M9 11V6a2 2 0 0 1 4 0v5M13 10V8.5a2 2 0 0 1 4 0V12M17 11a2 2 0 0 1 4 0v3a8 8 0 0 1-8 8h-1a8 8 0 0 1-6.3-3l-2.3-3.3a1.8 1.8 0 0 1 2.9-2.1L9 15"/><path d="M6.5 4.5a6 6 0 0 0 0 7M15.5 4.5a6 6 0 0 1 0 7"/></svg>',
+  comm:'<svg viewBox="0 0 24 24"><path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H9l-5 4V5a1 1 0 0 1 1-1z"/><rect x="7" y="8" width="7" height="5" rx="1"/><path d="m14 10 3-2v5l-3-2"/></svg>',
+  ovr:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="12" height="14" rx="1"/><path d="M18 5v14M21 5v14"/></svg>'
+};
+const TICON={
+  ops:'<svg class="tic" viewBox="0 0 48 48"><rect x="6" y="6" width="36" height="36" rx="9"/><path d="M17 33V23M24 33V15M31 33V27"/></svg>',
+  alarm:'<svg class="tic" viewBox="0 0 48 48"><path d="M14 36V27a10 10 0 0 1 20 0v9"/><rect x="10" y="36" width="28" height="6" rx="2"/><path d="M24 5v4M11 11l3 3M37 11l-3 3M5 24h4M39 24h4"/><circle cx="24" cy="28" r="2.4"/><path d="M24 30.4V33"/></svg>',
+  act:'<svg class="tic" viewBox="0 0 48 48"><path d="M14 11a8 8 0 0 1 16 0" opacity=".55"/><path d="M10 11a12 12 0 0 1 24 0" opacity=".3"/><path d="M19 27V12a3 3 0 0 1 6 0v11"/><path d="M25 22a3 3 0 0 1 6 0v2M31 24a3 3 0 0 1 6 0v7c0 7-5 12-12 12h-1.5c-4 0-7-2-9-5l-5.5-8a3 3 0 0 1 5-3.4L19 31"/></svg>',
+  comm:'<svg class="tic" viewBox="0 0 48 48"><path d="M9 7h30a3 3 0 0 1 3 3v21a3 3 0 0 1-3 3H19l-9 7v-7H9a3 3 0 0 1-3-3V10a3 3 0 0 1 3-3z"/><rect x="13" y="15" width="15" height="11" rx="2"/><path d="m28 19 7-3.5v10L28 22"/></svg>'
+};
+const arrow='<svg viewBox="0 0 24 24"><path d="M7 17 17 7M8 7h9v9"/></svg>';
+
+/* ---------- sample data (dummy) ---------- */
+const TYPES=[
+  {k:'Panic / Duress',c:'#ef3e3e'},{k:'Forced Door',c:'#f59e2b'},{k:'Intrusion',c:'#3a7bfd'},
+  {k:'Fire',c:'#ff6a3c'},{k:'Crowd Density',c:'#c53bd8'},{k:'Device Health',c:'#9aa3ad'}];
+/* Mall list and gross leasable areas as provided. Map positions are approximate. Everything else is sample data. */
+const MALL={
+  m360:{no:1,name:'360 Kuwait',gov:'kw-hw',area:130000,kind:'Regional mall',keys:['360']},
+  kout:{no:2,name:'Al Kout Mall',gov:'kw-ah',area:100000,kind:'Waterfront mall',keys:['kout']},
+  khiran:{no:3,name:'Al Khiran Mall',gov:'kw-ah',area:88300,kind:'Coastal mall',keys:['khiran']},
+  warehouse:{no:4,name:'The Warehouse Mall',gov:'kw-ah',area:75000,kind:'Lifestyle mall',keys:['warehouse']},
+  samaSal:{no:5,name:'Sama Salmiya',gov:'kw-hw',area:0,kind:'Neighbourhood centre',keys:['salmiya']},
+  samaJah:{no:5,name:'Sama Jahra',gov:'kw-ja',area:0,kind:'Neighbourhood centre',keys:['jahra']},
+  samaKha:{no:5,name:'Sama Khaitan',gov:'kw-fa',area:0,kind:'Neighbourhood centre',keys:['khaitan']},
+  samaSul:{no:5,name:'Sama Sulaibikhat',gov:'kw-ku',area:0,kind:'Neighbourhood centre',keys:['sulaibikhat']},
+  tamdeen:{no:6,name:'Tamdeen Square',gov:'kw-1922',area:0,kind:'Mixed-use: residential, hotel & retail',keys:['tamdeen']},
+  farm:{no:7,name:'The Farm Kuwait',gov:'kw-1922',area:0,kind:'Lifestyle retail',keys:['farm']}};
+const HOSP=Object.fromEntries(Object.entries(MALL).map(([k,v])=>[k,v.name]));
+const Z=(p,list)=>list.map(([n,st],i)=>({id:p+'-'+String(i+1).padStart(2,'0'),name:n,status:st||'online'}));
+const CITIES={
+  m360:{cc:'360 Kuwait · mall security room (View+ · CNTRL)',sites:Z('360',[['Main Entrances & Atrium'],['Food Court & Garden'],['Cinema & Entertainment'],['Hypermarket'],['Luxury Wing'],['Car Park & LPR Gates','offline'],['Loading Bay & Service Yard']])},
+  kout:{cc:'Al Kout Mall · mall security room (View+ · CNTRL)',sites:Z('KOT',[['Main Entrances'],['Waterfront Promenade'],['Food Court'],['Cinema'],['Car Park & LPR Gates'],['Loading Bay','maintenance']])},
+  khiran:{cc:'Al Khiran Mall · mall security room (View+ · CNTRL)',sites:Z('KHR',[['Main Entrances'],['Marina Walk'],['Food & Leisure'],['Car Park & LPR Gates'],['Service Yard']])},
+  warehouse:{cc:'The Warehouse Mall · mall security room (View+ · CNTRL)',sites:Z('WHS',[['Main Entrances'],['Retail Halls'],['Food Hall'],['Car Park & LPR Gates'],['Loading Docks','offline']])},
+  samaSal:{cc:'Sama Salmiya · local security post',sites:Z('SSL',[['Entrance & Retail'],['Supermarket'],['Car Park']])},
+  samaJah:{cc:'Sama Jahra · local security post',sites:Z('SJH',[['Entrance & Retail'],['Supermarket','maintenance'],['Car Park']])},
+  samaKha:{cc:'Sama Khaitan · local security post',sites:Z('SKH',[['Entrance & Retail'],['Supermarket'],['Car Park']])},
+  samaSul:{cc:'Sama Sulaibikhat · local security post',sites:Z('SSK',[['Entrance & Retail'],['Supermarket'],['Car Park']])},
+  tamdeen:{cc:'Tamdeen Square · estate security room',sites:Z('TSQ',[['Residential Tower Lobbies'],['Hotel Entrance'],['Retail Podium'],['Car Park & LPR Gates','maintenance']])},
+  farm:{cc:'The Farm Kuwait · site security post',sites:Z('FRM',[['Outdoor Plaza'],['Retail & Dining'],['Car Park']])}
+};
+const CNAMES=Object.keys(CITIES);
+const ALLSITES=CNAMES.flatMap(c=>CITIES[c].sites.map(s=>({...s,city:c})));
+// per-site alarm counts by type
+ALLSITES.forEach(s=>{const r=rng(s.id);s.alarms={};TYPES.forEach((t,i)=>{const big=MALL[s.city].area?1.5:.7;const base=[1.5,4,2.5,1.5,4,5][i]*big*(/Food|Cinema|Promenade|Plaza/.test(s.name)&&i===4?2:1);s.alarms[t.k]=Math.round(base*r()*(s.status==='offline'?2:1))});s.ack=Math.round(18+r()*70);s.res=Math.round(4+r()*40);s.uptime=(s.status==='online'?97+r()*2.9:s.status==='maintenance'?88+r()*6:60+r()*20).toFixed(1)});
+const cityAlarms=c=>CITIES[c].sites.reduce((a,s)=>a+Object.values(ALLSITES.find(x=>x.id===s.id).alarms).reduce((p,q)=>p+q,0),0);
+
+/* ---------- state ---------- */
+const S={tab:'overview',city:'m360',blur:false,period:'QoQ',amoPeriod:'QoQ',amoType:'Fire',amoSite:'all',
+  ohSite:'all',ohType:'all',pm:{site:'all',status:'all',type:'all',sev:'all',hours:false,from:'00:00',to:'23:00'},
+  cf:{site:'all',status:'all',type:'all',sev:'all',hours:false,from:'00:00',to:'23:00'},chan:0,glance:0};
+
+/* ---------- nav ---------- */
+const TABS=[['overview','Overview','ovr'],['ops','Operational Insights','ops'],['alarm','Alarm Insights','alarm'],['act','Actionable Insights','act'],['comm','Communications','comm']];
+function buildNav(){const n=$('#navs');n.innerHTML='';TABS.forEach(([id,l,ic])=>n.append(h('button',{class:'nav',role:'tab','aria-selected':S.tab===id,html:ICON[ic]+l,on:{click:()=>go(id)}})))}
+function go(t){S.tab=t;try{history.replaceState(null,'','#'+t)}catch(e){}buildNav();render();window.scrollTo({top:0,behavior:'smooth'})}
+
+/* ---------- charts ---------- */
+const NS='http://www.w3.org/2000/svg';
+function svgEl(t,a){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);return e}
+function smooth(pts){let d=`M${pts[0][0]},${pts[0][1]}`;for(let i=0;i<pts.length-1;i++){const [x0,y0]=pts[i-1]||pts[i],[x1,y1]=pts[i],[x2,y2]=pts[i+1],[x3,y3]=pts[i+2]||pts[i+1];d+=` C${x1+(x2-x0)/6},${y1+(y2-y0)/6} ${x2-(x3-x1)/6},${y2-(y3-y1)/6} ${x2},${y2}`}return d}
+function axes(svg,W,H,pad,max,step,xl,vgrid){
+  for(let v=0;v<=max;v+=step){const y=H-pad.b-(v/max)*(H-pad.t-pad.b);svg.append(svgEl('line',{x1:pad.l,x2:W-pad.r,y1:y,y2:y,class:'grid-l'}));const t=svgEl('text',{x:pad.l-8,y:y+3,'text-anchor':'end',class:'ax'});t.textContent=v%1?v.toFixed(1):v;svg.append(t)}
+  xl.forEach(([x,l])=>{if(vgrid)svg.append(svgEl('line',{x1:x,x2:x,y1:pad.t,y2:H-pad.b,class:'vgrid','stroke-dasharray':vgrid==='dash'?'3 4':''}));const t=svgEl('text',{x,y:H-pad.b+18,'text-anchor':'middle',class:'ax'});t.textContent=l;svg.append(t)})
+}
+function lineChart(el,series,{labels,max,step,H=260,vgrid='dash',area=false}){
+  const W=Math.max(300,el.clientWidth-16),pad={l:36,r:16,t:14,b:30};el.innerHTML='';
+  const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,height:H,role:'img'});
+  const n=series[0].data.length,X=i=>pad.l+i*(W-pad.l-pad.r)/(n-1),Y=v=>H-pad.b-(v/max)*(H-pad.t-pad.b);
+  const step2=Math.ceil(n/7);axes(svg,W,H,pad,max,step,labels.map((l,i)=>[X(i),l]).filter((_,i)=>i%step2===0||i===n-1),vgrid);
+  series.forEach(s=>{const pts=s.data.map((v,i)=>[X(i),Y(v)]);
+    if(area){const g=svgEl('path',{d:smooth(pts)+` L${X(n-1)},${H-pad.b} L${X(0)},${H-pad.b}Z`,fill:s.c,opacity:.12});svg.append(g)}
+    svg.append(svgEl('path',{d:smooth(pts),fill:'none',stroke:s.c,'stroke-width':2}));
+    const last=pts[pts.length-1];svg.append(svgEl('circle',{cx:last[0],cy:last[1],r:3.5,fill:s.c}))});
+  // hover
+  const tip=svgEl('g',{opacity:0});const ln=svgEl('line',{y1:pad.t,y2:H-pad.b,stroke:'#fff','stroke-opacity':.3});const bx=svgEl('rect',{width:120,height:18+series.length*16,rx:6,fill:'#0b1119',stroke:'rgba(160,185,210,.3)'});tip.append(ln,bx);
+  const tt=series.map((s,i)=>{const t=svgEl('text',{fill:s.c,'font-size':11,'font-family':'IBM Plex Mono'});tip.append(t);return t});const th=svgEl('text',{fill:'#fff','font-size':11,'font-weight':700});tip.append(th);svg.append(tip);
+  svg.addEventListener('pointermove',e=>{const r=svg.getBoundingClientRect(),x=(e.clientX-r.left)*W/r.width;const i=Math.max(0,Math.min(n-1,Math.round((x-pad.l)/((W-pad.l-pad.r)/(n-1)))));const px=X(i);tip.setAttribute('opacity',1);ln.setAttribute('x1',px);ln.setAttribute('x2',px);const bxX=px+130>W?px-128:px+8;bx.setAttribute('x',bxX);bx.setAttribute('y',pad.t);th.setAttribute('x',bxX+8);th.setAttribute('y',pad.t+14);th.textContent=labels[i];series.forEach((s,j)=>{tt[j].setAttribute('x',bxX+8);tt[j].setAttribute('y',pad.t+30+j*15);tt[j].textContent=`${s.name}: ${s.data[i].toFixed?+s.data[i].toFixed(2):s.data[i]}`})});
+  svg.addEventListener('pointerleave',()=>tip.setAttribute('opacity',0));
+  el.append(svg)
+}
+function barChart(el,series,{labels,max,step,H=260}){
+  const W=Math.max(300,el.clientWidth-16),pad={l:36,r:16,t:14,b:30};el.innerHTML='';
+  const svg=svgEl('svg',{viewBox:`0 0 ${W} ${H}`,height:H,role:'img'});
+  const n=labels.length,slot=(W-pad.l-pad.r)/n,bw=Math.max(2,Math.min(7,slot/4)),Y=v=>H-pad.b-(v/max)*(H-pad.t-pad.b);
+  const step2=Math.ceil(n/7);axes(svg,W,H,pad,max,step,labels.map((l,i)=>[pad.l+slot*(i+.5),l]).filter((_,i)=>i%step2===0||i===n-1),false);
+  labels.forEach((l,i)=>series.forEach((s,j)=>{const x=pad.l+slot*(i+.5)+(j-.5)*(bw+2)-bw/2,v=s.data[i];const r=svgEl('rect',{x,y:Y(v),width:bw,height:H-pad.b-Y(v),fill:s.c,rx:1});const t=svgEl('title');t.textContent=`${l} · ${s.name}: ${v}`;r.append(t);svg.append(r)}));
+  el.append(svg)
+}
+function donut(el,parts,{size=260,center,sub,thick=16}){
+  const r=size/2-46,cx=size/2,cy=size/2,tot=parts.reduce((a,p)=>a+p.v,0)||1;el.innerHTML='';
+  const svg=svgEl('svg',{viewBox:`0 0 ${size} ${size}`,width:size,height:size,style:'max-width:100%;height:auto'});
+  const defs=svgEl('defs');defs.innerHTML=`<radialGradient id="dg"><stop offset="0" stop-color="#d21f1f"/><stop offset=".75" stop-color="#7a0f12"/><stop offset="1" stop-color="#2a0a0c"/></radialGradient>`;svg.append(defs);
+  svg.append(svgEl('circle',{cx,cy,r:r-thick/2-2,fill:'url(#dg)',opacity:.9}));
+  let a0=-Math.PI/2;parts.forEach(p=>{if(!p.v)return;const a1=a0+p.v/tot*Math.PI*2-0.02,lg=a1-a0>Math.PI?1:0;
+    const d=`M${cx+r*Math.cos(a0)},${cy+r*Math.sin(a0)} A${r},${r} 0 ${lg} 1 ${cx+r*Math.cos(a1)},${cy+r*Math.sin(a1)}`;
+    const path=svgEl('path',{d,fill:'none',stroke:p.c,'stroke-width':thick,'stroke-linecap':'butt',style:'cursor:pointer'});const t=svgEl('title');t.textContent=`${p.k}: ${p.v}`;path.append(t);if(p.on)path.addEventListener('click',p.on);svg.append(path);
+    const am=(a0+a1)/2,pct=(p.v/tot*100);if(pct>=3){const lx=cx+(r+24)*Math.cos(am),ly=cy+(r+24)*Math.sin(am);const tx=svgEl('text',{x:lx,y:ly+4,'text-anchor':'middle',fill:'#fff','font-size':11,'font-weight':700});tx.textContent=pct.toFixed(1)+'%';svg.append(tx)}
+    a0=a1+0.02});
+  const t1=svgEl('text',{x:cx,y:cy+4,'text-anchor':'middle',fill:'#fff','font-size':30,'font-weight':800,class:'blurable'});t1.textContent=center;svg.append(t1);
+  const t2=svgEl('text',{x:cx,y:cy+26,'text-anchor':'middle',fill:'#fff','font-size':13,'font-weight':600});t2.textContent=sub;svg.append(t2);
+  el.append(svg)
+}
+
+/* ---------- views ---------- */
+const V={};
+const Hrs=Array.from({length:25},(_,i)=>i===24?'23:59':String(i).padStart(2,'0')+':00');
+
+/* OVERVIEW */
+const GLANCE=[
+  {t:'Weekend footfall at 360 Kuwait forecast 18% above normal',p:'Sentrl expects the food court and cinema level to pass 85% capacity between 20:00 and 23:00 on Friday. Two extra guards proposed.',ic:'crowd',g:['#4b1d6b','#b44be0'],src:'AI'},
+  {t:'Lost child reunited at Al Kout Mall in 6 minutes',p:'Code Adam was raised at the waterfront entrance; operators traced the child on camera and guided the response team to the food court.',ic:'shield',g:['#2a3b1a','#8ea35a'],src:'OPS'},
+  {t:'Health monitoring flags failing recorder at The Warehouse Mall',p:'Disk errors on the loading-dock recorder were caught early; the replacement is booked before coverage is lost.',ic:'tool',g:['#123047','#4b8cff'],src:'HEALTH'},
+  {t:'360 Kuwait car park LPR gates offline',p:'Network fault on the basement ring. The local Edge unit keeps recording and will sync to the central view when the link returns.',ic:'alert',g:['#5a1414','#ef3e3e'],src:'EDGE'},
+  {t:'Evacuation drill completed at Al Khiran Mall',p:'Fire panel, cameras and exit doors were shown together on the video wall; the mall cleared in 7 min 20 s.',ic:'fire',g:['#6a2d0c','#f59e2b'],src:'DRILL'},
+  {t:'Sama centres join the central security view',p:'Salmiya, Jahra, Khaitan and Sulaibikhat now send alarms and live video to central operations, with local posts kept in place.',ic:'cam',g:['#0f4c81','#2bb3c0'],src:'PLAN'}];
+const GIC={cam:'<path d="M3 7h12l4-3v14l-4-3H3z"/><circle cx="9" cy="11" r="2.5"/>',crowd:'<circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 3-5 6-5s6 2 6 5M12 20c0-3 3-5 6-5s4 1 4 3"/>',shield:'<path d="M12 3 4 6v6c0 5 4 8 8 9 4-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>',alert:'<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>',fire:'<path d="M12 22c4 0 7-3 7-7 0-5-5-7-5-12-3 2-4 5-4 8-1-1-2-2-2-4-2 2-3 5-3 8 0 4 3 7 7 7z"/>',tool:'<path d="M14 7a4 4 0 0 0 5 5l-9 9-3-3 9-9a4 4 0 0 1-2-2z"/>'};
+V.overview=()=>{
+  const m=h('div',{class:'view'});
+  const d=new Date();
+  m.append(h('div',{class:'hello'},h('div',{},h('h1',{},'Hello executive'),h('div',{class:'date num'},`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()} · Tamdeen Malls Kuwait · Central Security Operations · ${CNAMES.length} locations`))));
+  const tiles=h('div',{class:'tiles'});
+  const online=ALLSITES.filter(s=>s.status==='online').length,totAl=CNAMES.reduce((a,c)=>a+cityAlarms(c),0);
+  [['ops','Operational Insights','ops',`<b>${online}/${ALLSITES.length}</b> security zones online`],['alarm','Alarm Insights','alarm',`<b>${totAl}</b> alarms this quarter`],['act','Actionable Insights','act',`<b>6</b> recommendations`],['comm','Communications','comm',`<b>${CHANS.length}</b> security channels`]]
+    .forEach(([id,l,ic,st])=>tiles.append(h('button',{class:'tile',on:{click:()=>go(id)},'aria-label':l},h('b',{html:l.replace(' ','<br>')}),h('span',{html:TICON[ic]}),h('span',{class:'stat blurable',html:st}),h('span',{class:'go',html:arrow}))));
+  const mp=h('section',{class:'panel map-panel','aria-label':'Kingdom map'});
+  m.append(h('div',{class:'home-grid'},tiles,mp));
+  buildMap(mp);
+  // glance
+  const g=h('section',{class:'glance'});
+  const row=h('div',{class:'glance-row'});
+  const draw=()=>{row.innerHTML='';for(let i=0;i<3;i++){const n=GLANCE[(S.glance+i)%GLANCE.length];row.append(h('article',{class:'news'},
+    h('div',{class:'thumb',style:`background:linear-gradient(135deg,${n.g[0]},${n.g[1]})`,html:`<svg viewBox="0 0 24 24">${GIC[n.ic]}</svg><span class="src">${n.src}</span>`}),
+    h('div',{style:'min-width:0'},h('div',{class:'when'},'Posted on '+d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})),h('h4',{},n.t),h('p',{},n.p))))}};
+  const pg=h('div',{class:'pager'},h('button',{'aria-label':'Previous',html:'<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',on:{click:()=>{S.glance=(S.glance+GLANCE.length-1)%GLANCE.length;draw()}}}),h('button',{'aria-label':'Next',html:'<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',on:{click:()=>{S.glance=(S.glance+1)%GLANCE.length;draw()}}}));
+  g.append(h('div',{class:'glance-head'},h('h2',{},'Global Glance'),pg),row);draw();
+  m.append(g);
+  return m;
+};
+const GOV={'kw-ku':'Capital','kw-hw':'Hawalli','kw-fa':'Farwaniya','kw-1922':'Mubarak Al-Kabeer','kw-ah':'Ahmadi','kw-ja':'Jahra'};
+/* label callouts: [x,y,anchor] in map space, placed to keep the Kuwait City cluster readable */
+const LBL={samaJah:[440,346,'end'],samaSul:[548,320,'end'],m360:[612,292,'middle'],samaKha:[548,446,'end'],
+  samaSal:[700,346,'start'],farm:[704,392,'start'],tamdeen:[704,432,'start'],warehouse:[600,526,'end'],kout:[716,484,'start'],khiran:[712,726,'end']};
+const LIFT=24,DEPTH=12,LAYERS=24;
+function buildMap(mp){
+  const title=h('h3',{});const sub=h('div',{class:'label',style:'margin:-4px 0 8px'});
+  const tot=h('div',{class:'big num blurable'}),act=h('span',{class:'num blurable'}),res=h('span',{class:'num blurable'});
+  const card=h('div',{class:'city-card'},h('div',{class:'tot'},h('div',{style:'font-size:15px;color:#ddd'},'Total Alarms'),tot),
+    h('div',{class:'sub'},h('div',{title:'Active',html:'<svg viewBox="0 0 24 24" stroke="#f5b82e"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/></svg>'},act),h('div',{title:'Resolved',html:'<svg viewBox="0 0 24 24" stroke="#2fcf6a"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5M9 12l2 2 4-4"/></svg>'},res)));
+  const inp=h('input',{placeholder:'Search mall or area...','aria-label':'Search mall or area',id:'locIn',autocomplete:'off'});const sug=h('div',{class:'loc-sug',hidden:''});
+  const searchable=[...CNAMES.map(c=>({m:c,label:HOSP[c]+' · '+GOV[MALL[c].gov]})),...Object.keys(GOV).map(k=>({g:k,label:GOV[k]+' Governorate'}))];
+  const pick=s=>{s.m?selectMall(s.m):selectGov(s.g);inp.value='';sug.hidden=true};
+  inp.addEventListener('input',()=>{const q=inp.value.trim().toLowerCase();sug.innerHTML='';const hits=searchable.filter(s=>s.label.toLowerCase().includes(q));sug.hidden=!q||!hits.length;hits.slice(0,7).forEach(s=>sug.append(h('button',{type:'button',on:{click:()=>pick(s)}},s.label)))});
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){const q=inp.value.trim().toLowerCase();const s=searchable.find(s=>s.label.toLowerCase().includes(q));if(q&&s)pick(s);else toast('No mall or area matches that search')}});
+  mp.append(h('div',{class:'map-head'},h('div',{},title,sub,card),h('div',{class:'loc-search'},inp,sug)));
+  const stage=h('div',{class:'map-stage'});mp.append(stage);
+  const svg=svgEl('svg',{viewBox:'40 170 790 590',preserveAspectRatio:'xMidYMid meet','aria-label':'Map of Kuwait by governorate with mall locations'});
+  svg.innerHTML=`<defs>
+  <linearGradient id="topg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4d8bff"/><stop offset="1" stop-color="#2557e0"/></linearGradient>
+  <linearGradient id="sideg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#9fb7d6"/></linearGradient>
+  <linearGradient id="liftTop" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#f0672a"/></linearGradient>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#000" flood-opacity=".55"/></filter>
+  <filter id="liftsh" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="20" stdDeviation="8" flood-color="#000" flood-opacity=".6"/></filter></defs>`;
+  const g=svgEl('g',{});
+  Object.values(GEO.nb).forEach(d=>g.append(svgEl('path',{d,fill:'rgba(140,170,200,.06)',stroke:'rgba(160,190,220,.28)','stroke-width':1})));
+  const sea=svgEl('text',{x:768,y:236,'text-anchor':'middle',class:'sea'});sea.textContent='Arabian Gulf';g.append(sea);
+  const ex=svgEl('g',{filter:'url(#sh)'});const all=Object.values(GEO.prov).map(p=>p.d).join('');
+  for(let i=DEPTH;i>=1;i--)ex.append(svgEl('path',{d:all,fill:i>DEPTH-2?'#7d96b8':'url(#sideg)',transform:`translate(0 ${i})`}));g.append(ex);
+  const tops={};const topsG=svgEl('g',{});g.append(topsG);
+  Object.keys(GEO.prov).forEach(k=>{const n=CNAMES.filter(c=>MALL[c].gov===k).length;const t=svgEl('path',{d:GEO.prov[k].d,class:'prov live',tabindex:0,role:'button','aria-label':GOV[k]+' Governorate'});
+    const tt=svgEl('title');tt.textContent=`${GOV[k]} Governorate · ${n} mall${n===1?'':'s'}`;t.append(tt);
+    t.addEventListener('click',()=>selectGov(k));t.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectGov(k)}});
+    tops[k]=t;topsG.append(t)});
+  const lift=svgEl('g',{filter:'url(#liftsh)',style:'pointer-events:none'});g.append(lift);
+  const sides=[];for(let i=0;i<LAYERS;i++){const s=svgEl('path',{});sides.push(s);lift.append(s)}
+  const ltop=svgEl('path',{stroke:'#fff','stroke-width':1.4,fill:'url(#liftTop)'});lift.append(ltop);
+  const lname=svgEl('text',{'text-anchor':'middle',class:'lift-name'});lift.append(lname);
+  // pins with numbered markers and callout labels
+  const pinsG=svgEl('g',{});g.append(pinsG);const pins={};
+  CNAMES.forEach((c,i)=>{const [x,y]=GEO.pts[c];const [lx,ly,an]=LBL[c];const p=svgEl('g',{class:'pin',tabindex:0,role:'button','aria-label':HOSP[c]});
+    p.append(svgEl('line',{x1:x,y1:y,x2:lx+(an==='end'?4:an==='start'?-4:0),y2:ly-5,class:'lead'}));
+    p.append(svgEl('circle',{cx:x,cy:y,r:11,class:'halo'}),svgEl('circle',{cx:x,cy:y,r:5.5,class:'core'}));
+    const t=svgEl('text',{x:lx,y:ly,'text-anchor':an,class:'pl'});t.innerHTML=`<tspan class="pn">${MALL[c].no}</tspan> ${HOSP[c]}`;p.append(t);
+    const tt=svgEl('title');tt.textContent=`${HOSP[c]} · ${MALL[c].area?fmt(MALL[c].area)+' m²':MALL[c].kind} · ${GOV[MALL[c].gov]}`;p.append(tt);
+    p.addEventListener('click',e=>{e.stopPropagation();selectMall(c)});p.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();selectMall(c)}});
+    pins[c]=p;pinsG.append(p)});
+  svg.append(g);stage.append(svg);
+  const sites=h('div',{class:'map-sites'});mp.append(sites);
+  const idx=()=>CNAMES.indexOf(S.city),N=CNAMES.length;
+  mp.append(h('div',{class:'map-arrows'},h('button',{'aria-label':'Previous mall',html:'<svg viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></svg>',on:{click:()=>selectMall(CNAMES[(Math.max(0,idx())+N-1)%N])}}),h('button',{'aria-label':'Next mall',html:'<svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>',on:{click:()=>selectMall(CNAMES[(idx()+1)%N])}})));
+  const cent=k=>{const b=tops[k].getBBox();return[b.x+b.width/2,b.y+b.height/2]};
+  let anim=0;
+  function raise(k){const d=GEO.prov[k].d;
+    sides.forEach((s,i)=>{s.setAttribute('d',d);s.setAttribute('fill',i<2?'#9a3a12':'#e0874a')});sides[0].setAttribute('fill','#7a2c0c');ltop.setAttribute('d',d);
+    let [cx,cy]=[0,0];try{[cx,cy]=cent(k)}catch(e){}
+    lname.textContent=(k==='kw-ah'||k==='kw-ja')?GOV[k]:'';lname.setAttribute('x',k==='kw-ja'?cx-60:cx);lname.setAttribute('y',k==='kw-ah'?cy+70:cy+40);
+    Object.entries(tops).forEach(([key,t])=>t.classList.toggle('dim',key===k));
+    const red=matchMedia('(prefers-reduced-motion: reduce)').matches,t0=performance.now(),dur=red?1:420;cancelAnimationFrame(anim);
+    const step=now=>{const p=Math.min(1,(now-t0)/dur),e=1-Math.pow(1-p,3),L=LIFT*e;
+      sides.forEach((s,i)=>{const y=DEPTH-(DEPTH+L)*(i/LAYERS);s.setAttribute('transform',`translate(0 ${y.toFixed(2)})`)});
+      ltop.setAttribute('transform',`translate(0 ${(-L).toFixed(2)})`);lname.setAttribute('transform',`translate(0 ${(-L).toFixed(2)})`);
+      Object.entries(pins).forEach(([c,p])=>p.setAttribute('transform',MALL[c].gov===k?`translate(0 ${(-L).toFixed(2)})`:''));
+      if(p<1)anim=requestAnimationFrame(step)};
+    anim=requestAnimationFrame(step)}
+  const setCard=t=>{const a=Math.round(t*.28);tot.textContent=t;act.textContent=a;res.textContent=t-a};
+  const statusLabel=s=>s==='maintenance'?'Maint.':s[0].toUpperCase()+s.slice(1);
+  function selectMall(c){S.city=c;const M=MALL[c],C=CITIES[c];
+    Object.entries(pins).forEach(([n,p])=>p.classList.toggle('sel',n===c));raise(M.gov);
+    title.textContent=HOSP[c];sub.textContent=`${GOV[M.gov]} Governorate · ${M.area?fmt(M.area)+' m² GLA':M.kind} · ${C.sites.length} security zones`;setCard(cityAlarms(c));
+    sites.innerHTML='';sites.append(h('h4',{},C.cc));C.sites.forEach(s=>sites.append(h('div',{class:'site-row'},h('span',{},s.name),h('span',{class:'st '+s.status},statusLabel(s.status)))));
+    sites.append(h('button',{class:'pill-btn',style:'margin-top:8px;width:100%;justify-content:center',on:{click:()=>{S.ohSite='city:'+c;go('ops')}}},`Open ${HOSP[c]} insights →`))}
+  function selectGov(k){const ms=CNAMES.filter(c=>MALL[c].gov===k);
+    Object.values(pins).forEach(p=>p.classList.remove('sel'));raise(k);
+    title.textContent=GOV[k]+' Governorate';sub.textContent=ms.length?`${ms.length} mall${ms.length>1?'s':''} monitored · select one for its zones`:'No monitored malls in this governorate';
+    setCard(ms.reduce((a,c)=>a+cityAlarms(c),0));sites.innerHTML='';sites.append(h('h4',{},'Malls in '+GOV[k]));
+    if(!ms.length)sites.append(h('div',{class:'site-row'},h('span',{},'No RAMsys Eye sites connected here yet.')));
+    ms.forEach(c=>sites.append(h('button',{class:'site-row mall-row',type:'button',on:{click:()=>selectMall(c)}},h('span',{},h('b',{class:'pn2'},MALL[c].no),' ',HOSP[c]),h('span',{class:'label'},MALL[c].area?fmt(MALL[c].area)+' m²':MALL[c].kind))))}
+  requestAnimationFrame(()=>selectMall(S.city));
+}
+
+/* OPERATIONAL */
+V.ops=()=>{
+  const m=h('div',{class:'view'});
+  const cityFilter=S.ohSite.startsWith('city:')?S.ohSite.slice(5):null;
+  const list=cityFilter?ALLSITES.filter(s=>s.city===cityFilter):ALLSITES;
+  const cnt=k=>list.filter(s=>s.status===k).length;
+  const pct=Math.round(cnt('online')/list.length*100);
+  const ring=h('div',{class:'ring'});
+  ring.innerHTML=`<svg viewBox="0 0 210 210" width="210" height="210"><circle cx="105" cy="105" r="96" fill="#3c5574" opacity=".85"/><circle cx="105" cy="105" r="96" fill="none" stroke="#7d98b8" stroke-width="7" opacity=".6"/>
+  <circle cx="105" cy="105" r="96" fill="none" stroke="#2fcf6a" stroke-width="7" stroke-dasharray="${pct/100*603} 603" transform="rotate(-90 105 105)" stroke-linecap="round"/>
+  <text x="105" y="104" text-anchor="middle" fill="#fff" font-size="32" font-weight="800" class="blurable">${pct}%</text><text x="105" y="128" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Zones Online</text></svg>`;
+  const quad=h('div',{class:'quad blurable'},
+    h('div',{},h('div',{class:'label'},'Total'),h('div',{class:'v num'},list.length)),
+    h('div',{},h('div',{class:'label',style:'color:var(--warn)'},'Maintenance'),h('div',{class:'v num'},cnt('maintenance'))),
+    h('div',{},h('div',{class:'label',style:'color:var(--ok)'},'Online'),h('div',{class:'v num'},cnt('online'))),
+    h('div',{},h('div',{class:'label',style:'color:#7d98b8'},'Offline'),h('div',{class:'v num'},cnt('offline'))));
+  const scope=h('select',{class:'pill-btn','aria-label':'Scope'});[['all','All malls'],...CNAMES.map(c=>['city:'+c,HOSP[c]])].forEach(([v,l])=>scope.append(h('option',{value:v},l)));scope.value=cityFilter?'city:'+cityFilter:'all';scope.onchange=()=>{S.ohSite=scope.value;render()};
+  const tb=h('tbody',{});list.forEach(s=>{const a=Object.values(s.alarms).reduce((x,y)=>x+y,0);tb.append(h('tr',{class:'click',tabindex:0,on:{click:()=>siteModal(s)}},h('td',{},h('b',{},s.name),h('div',{class:'label'},s.id)),h('td',{},HOSP[s.city]),h('td',{class:'num blurable'},s.uptime+'%'),
+    h('td',{},h('span',{class:'st '+s.status},s.status[0].toUpperCase()+s.status.slice(1)),' ',a?h('span',{class:'chip',style:'color:var(--crit);margin-left:8px'},h('i',{},a),'alarms'):'')))});
+  m.append(h('section',{class:'panel'},
+    h('div',{class:'two'},
+      h('div',{},h('div',{class:'ph'},h('h2',{},'Security Zone Status'),scope),h('div',{class:'sso'},ring,quad)),
+      h('div',{},h('div',{class:'ph'},h('h2',{},'Zones'),h('span',{class:'hint'},'Select a zone for details')),h('div',{class:'tbl-wrap'},h('table',{},h('thead',{},h('tr',{},h('th',{},'Security zone'),h('th',{},'Mall'),h('th',{},'Uptime'),h('th',{},'Status'))),tb)))),
+    h('div',{class:'legend'},h('span',{style:'--c:var(--ok)'},'Online'),h('span',{style:'--c:var(--warn)'},'Maintenance'),h('span',{style:'--c:#7d98b8'},'Offline'))));
+  // Alarm handling
+  const siteSel=h('select',{class:'pill-btn','aria-label':'Site'});siteSel.append(h('option',{value:'all'},'All zones'));list.forEach(s=>siteSel.append(h('option',{value:s.id},HOSP[s.city]+' · '+s.name)));
+  const typeSel=h('select',{class:'pill-btn','aria-label':'Alarm type'});typeSel.append(h('option',{value:'all'},'All types'));TYPES.forEach(t=>typeSel.append(h('option',{value:t.k},t.k)));
+  const sevSel=h('select',{class:'pill-btn','aria-label':'Severity'});['All severities','Critical','High','Medium','Low'].forEach(v=>sevSel.append(h('option',{value:v},v)));
+  const left=h('div',{class:'aho-left'}),chart=h('div',{class:'chart'});
+  const upd=()=>{const ss=siteSel.value==='all'?list:list.filter(s=>s.id===siteSel.value);const key=siteSel.value+typeSel.value+sevSel.value;const r=rng(key);
+    const total=ss.reduce((a,s)=>a+(typeSel.value==='all'?Object.values(s.alarms).reduce((x,y)=>x+y,0):s.alarms[typeSel.value]),0);
+    const sevF=sevSel.selectedIndex?[.15,.3,.35,.2][sevSel.selectedIndex-1]:1;const T=Math.max(0,Math.round(total*sevF));
+    const ack=Math.round(T*(.75+r()*.2)),cl=Math.round(ack*(.6+r()*.3));
+    const avgA=Math.round(ss.reduce((a,s)=>a+s.ack,0)/ss.length),avgR=Math.round(ss.reduce((a,s)=>a+s.res,0)/ss.length);
+    left.innerHTML='';left.append(h('div',{class:'kv'},h('div',{class:'k'},'Average',h('b',{},'Acknowledgement Time')),h('div',{class:'v num blurable'},avgA+' sec')),
+      h('div',{class:'kv'},h('div',{class:'k'},'Average',h('b',{},'Resolution Time')),h('div',{class:'v num blurable'},avgR+' min')),
+      h('div',{class:'trio blurable'},...[['Total Alarms',T],['Acknowledged',ack],['Closed',cl]].map(([l,v])=>h('div',{},h('div',{style:'font-size:13px'},l),h('div',{class:'v num'},v)))));
+    const data=Array.from({length:25},(_,i)=>{const peak=Math.exp(-((i-13)**2)/6)*0.9+Math.exp(-((i-20)**2)/4)*0.4;return Math.min(1,Math.max(0,peak*(0.6+r()*.5)))});
+    requestAnimationFrame(()=>lineChart(chart,[{name:'Alarm load',c:'#4b9bff',data}],{labels:Hrs,max:1,step:.1,H:300,vgrid:'solid',area:true}))};
+  [siteSel,typeSel,sevSel].forEach(s=>s.onchange=upd);
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Alarm Handling Overview'),h('div',{class:'filters'},siteSel,typeSel,sevSel)),h('div',{class:'aho'},left,chart)));
+  upd();
+  const codes=[['Code Red','Fire',var_c('#ff6a3c'),1,'4m 05s'],['Code Adam','Lost child',var_c('#ff6fb5'),3,'6m 10s'],['Code Grey','Aggressive person',var_c('#9aa3ad'),2,'2m 40s'],['Code Black','Bomb threat',var_c('#e6e6e6'),0,'—'],['Code Orange','Evacuation',var_c('#f59e2b'),0,'—']];
+  const cg=h('div',{class:'codes'});codes.forEach(([k,l,c,n,t])=>cg.append(h('button',{class:'code',style:`--c:${c}`,on:{click:()=>toast(n?`${k}: ${n} activation${n>1?'s':''} today, average coordinated response ${t}`:`${k}: no activations today`)}},h('b',{},k),h('span',{},l),h('div',{class:'v num blurable'},n),h('small',{},n?'Avg response '+t:'No activations today'))));
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Mall Emergency Codes · Today'),h('span',{class:'hint'},'Common retail code names; align with each mall’s own policy. Values are samples')),cg));
+  return m;
+};
+function var_c(x){return x}
+function siteModal(s){const tot=Object.values(s.alarms).reduce((a,b)=>a+b,0);
+  modal(`${HOSP[s.city]} · ${s.name}`,h('div',{},
+    h('p',{style:'margin:0 0 10px'},`${s.id} · `,h('span',{class:'st '+s.status},s.status),` · Uptime `,h('b',{class:'num'},s.uptime+'%')),
+    h('div',{class:'kv2'},h('div',{},h('div',{class:'label'},'Avg acknowledgement'),h('div',{class:'v num'},s.ack+' sec')),h('div',{},h('div',{class:'label'},'Avg resolution'),h('div',{class:'v num'},s.res+' min'))),
+    h('table',{},h('thead',{},h('tr',{},h('th',{},'Alarm type'),h('th',{},'Count'),h('th',{},'Share'))),h('tbody',{},...TYPES.map(t=>h('tr',{},h('td',{},h('span',{class:'st',style:`color:${t.c}`},t.k)),h('td',{class:'num'},s.alarms[t.k]),h('td',{},h('div',{class:'bar-mini',style:`--c:${t.c}`},h('i',{style:`width:${tot?s.alarms[t.k]/tot*100:0}%`}))))))),
+    h('p',{class:'label',style:'margin-top:12px'},'Sample data for demonstration.')))}
+
+/* ALARM */
+const PM={DoD:1,WoW:6,MoM:24,QoQ:70};
+V.alarm=()=>{
+  const m=h('div',{class:'view'});
+  // heatmap
+  const seg=h('div',{class:'seg'});const tw=h('div',{class:'tbl-wrap',style:'max-height:none'});
+  const drawHeat=()=>{seg.innerHTML='';Object.keys(PM).forEach(p=>seg.append(h('button',{'aria-pressed':S.period===p,on:{click:()=>{S.period=p;drawHeat()}}},p)));
+    const slots=['12AM','3AM','6AM','9AM','12PM','3PM','6PM','9PM'];
+    const rows=CNAMES.map(c=>{const r=rng(c+S.period);const w=[.1,.05,.2,.7,1,.8,.6,.35];return slots.map((_,i)=>Math.round(w[i]*PM[S.period]*(.4+r()*.8)*(MALL[c].area?MALL[c].area/90000:.35)))});
+    const mx=Math.max(...rows.flat())||1;
+    const tb=h('tbody',{});rows.forEach((vals,ri)=>{const c=CNAMES[ri];const r=rng(c+S.period+'t');const tr=Math.round((r()-.35)*120);
+      tb.append(h('tr',{},h('td',{},HOSP[c]),...vals.map((v,i)=>{const f=v/mx;const L=86-f*64;const td=h('td',{class:'cell'+(f>.55?' hot':'')+' blurable',style:`background:hsl(${218-f*8} 85% ${L}%)`,title:`${c} ${slots[i]}: ${v} alarms`,on:{click:()=>{toast(`${HOSP[c]} · ${slots[i]}: ${v} alarms (${S.period})`)}}},v);return td}),
+        h('td',{class:tr>=0?'trend-up':'trend-dn'},(tr>=0?'↑ ':'↓ ')+Math.abs(tr)+'%')))});
+    tw.innerHTML='';tw.append(h('table',{class:'heat'},h('thead',{},h('tr',{},h('th',{},'MALL'),...slots.map(s=>h('th',{},s)),h('th',{},'TREND'))),tb))};
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Mall Wise Alarm Distribution'),seg,h('span',{class:'hint'},'Brighter values indicate fewer alarms')),tw));
+  drawHeat();
+  // AMO
+  const site=h('select',{class:'pill-btn','aria-label':'Site'});site.append(h('option',{value:'all'},'All malls'));CNAMES.forEach(c=>site.append(h('option',{value:'city:'+c},HOSP[c])));ALLSITES.forEach(s=>site.append(h('option',{value:s.id},HOSP[s.city]+' · '+s.name)));site.value=S.amoSite;
+  const exp=f=>h('button',{class:'pill-btn',on:{click:()=>toast(`${f} report prepared for ${S.amoPeriod} (demo, no file is created)`)},html:`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m-5-5 5 5 5-5M4 21h16"/></svg>${f}`});
+  const pseg=h('div',{class:'seg',style:'padding:8px 10px;border-bottom:1px solid var(--line)'});
+  const dw=h('div',{class:'donut-wrap'}),types=h('div',{class:'types'}),det=h('div',{class:'detail'});
+  const ric=h('label',{style:'align-self:flex-end;display:flex;gap:8px;align-items:center;font-size:12px;font-weight:600'},'Manual RIC split ',h('input',{type:'checkbox',id:'ric'}));
+  const draw=()=>{pseg.innerHTML='';Object.keys(PM).forEach(p=>pseg.append(h('button',{'aria-pressed':S.amoPeriod===p,on:{click:()=>{S.amoPeriod=p;draw()}}},p)));
+    const sel=S.amoSite==='all'?ALLSITES:S.amoSite.startsWith('city:')?ALLSITES.filter(s=>s.city===S.amoSite.slice(5)):ALLSITES.filter(s=>s.id===S.amoSite);
+    const sc=PM[S.amoPeriod]/70;
+    const counts=TYPES.map(t=>({...t,v:Math.round(sel.reduce((a,s)=>a+s.alarms[t.k],0)*sc*(S.amoPeriod==='QoQ'?1:1.6))}));
+    const tot=counts.reduce((a,b)=>a+b.v,0);
+    dw.innerHTML='';dw.append(ric);const dd=h('div',{});dw.append(dd);donut(dd,counts.map(c=>({...c,on:()=>{S.amoType=c.k;draw()}})),{size:280,center:tot,sub:'Total Alarms'});
+    dw.append(h('p',{class:'label',style:'margin:6px 0 0;text-align:center'},'Click a segment or type to see its breakdown'));
+    types.innerHTML='';counts.forEach(c=>{const r=rng(c.k+S.amoPeriod+S.amoSite);const q=c.v?Math.round(r()*140-20):0;
+      types.append(h('button',{class:'type','aria-pressed':S.amoType===c.k,style:`--c:${c.c}`,on:{click:()=>{S.amoType=c.k;draw()}}},h('div',{},h('b',{},c.k),h('div',{class:'v num blurable'},c.v)),h('div',{class:'q'},h('span',{class:q>0?'trend-up':q<0?'trend-dn':''},(q>0?'↑ ':q<0?'↓ ':'')+Math.abs(q)+'%'),h('div',{class:'label'},S.amoPeriod))))});
+    const cur=counts.find(c=>c.k===S.amoType);const r=rng(cur.k+S.amoSite+S.amoPeriod);
+    const sv=[r(),r(),r(),r()];const sum=sv.reduce((a,b)=>a+b,0);let sevs=sv.map(x=>Math.floor(x/sum*cur.v));sevs[3]+=cur.v-sevs.reduce((a,b)=>a+b,0);
+    if(cur.k==='Panic / Duress'||cur.k==='Fire')sevs=[0,sevs[1],sevs[2],sevs[0]+sevs[3]];
+    const tp=cur.v?Math.round(60+r()*35):0;
+    det.innerHTML='';det.append(h('h3',{},`${cur.k} Alarm Details`),
+      h('div',{},h('div',{style:'font-size:13px;font-weight:600;margin-bottom:8px'},'Severity Breakup'),h('div',{class:'sev blurable'},...[['High','#ff8a3d'],['Low','#2fcf6a'],['Medium','#4b8cff'],['Critical','#ef3e3e']].map(([l,c],i)=>h('div',{},h('b',{style:`color:${c}`},l),h('div',{class:'v num'},sevs[i]))))),
+      h('div',{class:'kv2'},h('div',{},h('div',{style:'font-size:13px;font-weight:600'},'Processed By'),h('div',{style:'margin-top:8px'},cur.v?['Central operator (Sentrl)','Mall security room','Response team via Mobile'][Math.floor(r()*3)]:'—')),
+        h('div',{},h('div',{style:'font-size:13px;font-weight:600'},'Resolution Time'),h('div',{class:'v num blurable'},cur.v?Math.round(3+r()*30)+' min':'0 sec'),h('small',{},'Average time to resolve'))),
+      h('div',{class:'kv2',style:'border-top:1px solid var(--line);padding-top:16px'},
+        h('div',{},h('div',{style:'font-size:13px;font-weight:600'},'True Positive Rate'),h('div',{class:'v num'},tp+'%'),h('div',{class:'bar-mini',style:'--c:var(--ok)'},h('i',{style:`width:${tp}%`})),h('small',{},'Of total alarms of this type')),
+        h('div',{},h('div',{style:'font-size:13px;font-weight:600'},'False Positive Rate'),h('div',{class:'v num'},(cur.v?100-tp:0)+'%'),h('div',{class:'bar-mini',style:'--c:var(--crit)'},h('i',{style:`width:${cur.v?100-tp:0}%`})),h('small',{},'Of total alarms of this type'))))};
+  site.onchange=()=>{S.amoSite=site.value;draw()};
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Alarm Management Overview'),h('div',{class:'filters'},site,exp('PDF'),exp('CSV'))),
+    h('div',{class:'amo'},h('div',{},pseg,dw),types,det),
+    h('div',{class:'legend'},...TYPES.map(t=>h('span',{style:`--c:${t.c}`},t.k)))));
+  draw();
+  return m;
+};
+
+/* ACTIONABLE */
+const RECO=[
+  {t:'Add 2 guards to 360 Kuwait food court, Fri 20:00–23:00',p:'Footfall forecast shows the food court and cinema level passing 85% capacity. Crowd incidents rise above that level.',sev:'Critical',c:'#ef3e3e',city:'m360',mod:'Sentrl'},
+  {t:'Restore network link to 360 Kuwait car park LPR gates',p:'The gates are running on the Edge unit. Plates are recorded locally, but central operations has no live view until the link is back.',sev:'High',c:'#ff8a3d',city:'m360',mod:'Edge'},
+  {t:'Replace loading-dock recorder at The Warehouse Mall',p:'Health monitoring shows rising disk errors; failure expected in about 5 days, which would leave the docks unrecorded.',sev:'High',c:'#ff8a3d',city:'warehouse',mod:'Health monitoring'},
+  {t:'Open overflow parking at Al Kout Mall on weekend evenings',p:'Waterfront promenade footfall peaks after 21:00; queues at the car park exits trigger repeated crowd alarms.',sev:'Medium',c:'#4b8cff',city:'kout',mod:'Sentrl'},
+  {t:'Fix service door closer at Sama Jahra supermarket',p:'Four forced-door alarms in 7 days from the same door, each verified on video as a door left ajar.',sev:'Medium',c:'#4b8cff',city:'samaJah',mod:'Mobile & Eye'},
+  {t:'Add Tamdeen Square hotel entrance to the central video wall',p:'Hotel arrivals and the retail podium share one entrance. A dedicated wall layout gives operators a clearer view at peak check-in.',sev:'Low',c:'#2fcf6a',city:'tamdeen',mod:'View+ · CNTRL'}];
+V.act=()=>{
+  const m=h('div',{class:'view'});
+  m.append(forecastPanel('Equipment Health Forecast','pm','line',['#9de62f','#a34be0'],'Device faults'));
+  m.append(forecastPanel('Footfall Forecast · visitors (thousands)','cf','bar',['#a34be0','#22c6b8'],'Visitors'));
+  const grid=h('div',{class:'reco'});RECO.forEach((r,i)=>{const b=h('button',{class:'act',on:{click:()=>{b.disabled=true;b.textContent='Work order raised ✓';toast(`Work order WO-${4810+i} raised for ${HOSP[r.city]}`)}}},'Raise work order');
+    grid.append(h('article',{},h('div',{class:'meta'},h('span',{class:'tag',style:`color:${r.c}`},r.sev),h('span',{class:'label'},HOSP[r.city]+' · '+r.mod)),h('h4',{},r.t),h('p',{},r.p),b))});
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Recommended Actions'),h('span',{class:'hint'},'Generated from forecasts above')),grid));
+  return m;
+};
+function forecastPanel(title,key,kind,cols,unit){
+  const F=S[key];const mk=(id,label,opts)=>{const s=h('select',{class:'pill-btn','aria-label':label});opts.forEach(([v,l])=>s.append(h('option',{value:v},l)));s.value=F[id];s.onchange=()=>{F[id]=s.value;draw()};return s};
+  const filters=h('div',{class:'filters'},
+    mk('site','Mall',[['all','All malls'],...CNAMES.map(c=>[c,HOSP[c]])]),
+    mk('status','Status',[['all','All statuses'],['online','Online'],['maintenance','Maintenance']]),
+    mk('type','Type',key==='pm'?[['all','All devices'],['cam','Cameras'],['nvr','Recorders'],['wall','Video walls'],['acs','Access control']]:[['all','All areas'],['ent','Entrances'],['food','Food court'],['cin','Cinema & leisure'],['pk','Car parks']]),
+    mk('sev','Severity',[['all','All severities'],['crit','Critical'],['high','High'],['med','Medium']]));
+  const cb=h('input',{type:'checkbox',id:key+'-hrs'});cb.checked=F.hours;const f=h('input',{type:'time',value:F.from,'aria-label':'From'}),t=h('input',{type:'time',value:F.to,'aria-label':'To'});
+  cb.onchange=()=>{F.hours=cb.checked;draw()};f.onchange=()=>{F.from=f.value;draw()};t.onchange=()=>{F.to=t.value;draw()};
+  const names=key==='pm'?['Predicted','Actual']:['Predicted','Actual'];
+  const bar=h('div',{class:'hours'},h('label',{style:'display:flex;gap:8px;align-items:center'},cb,'Between specific hours'),f,'–',t,h('div',{class:'lg'},h('span',{style:`--c:${cols[0]}`},names[0]),h('span',{style:`--c:${cols[1]}`},names[1])));
+  const ch=h('div',{class:'chart'});
+  function draw(){const r=rng(key+JSON.stringify(F));const n=48;let hs=0,he=n;
+    if(F.hours){hs=Math.floor(parseInt(F.from)*2);he=Math.max(hs+2,Math.ceil((parseInt(F.to)+1)*2))}
+    const lbl=Array.from({length:n},(_,i)=>String(Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00'));
+    const sc=(F.site==='all'?1:MALL[F.site].area?MALL[F.site].area/140000:.3)*(F.sev==='all'?1:.6);
+    let a=[],b=[];for(let i=0;i<n;i++){if(key==='cf'){const open=i>=19&&i<=46;const base=open?3+16*Math.exp(-((i-41)**2)/45)+8*Math.exp(-((i-27)**2)/30):0;a.push(Math.round(base*(.9+r()*.25)*sc));b.push(Math.round(base*(.85+r()*.3)*sc));continue}
+      const base=15+10*Math.sin(i/7)+i/6;a.push(Math.max(1,Math.round((base+r()*6)*sc)));b.push(Math.max(1,Math.round((base+(r()-.5)*9)*sc)))}
+    a=a.slice(hs,he);b=b.slice(hs,he);const L=lbl.slice(hs,he);
+    const series=[{name:names[0],c:cols[0],data:a},{name:names[1],c:cols[1],data:b}];
+    requestAnimationFrame(()=>kind==='line'?lineChart(ch,series,{labels:L,max:35,step:5,H:260}):barChart(ch,series,{labels:L.filter((_,i)=>kind!=='bar'||true),max:35,step:5,H:260}))}
+  draw();ch._draw=draw;
+  return h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},title),filters),bar,ch);
+}
+
+/* COMMS */
+const CHANS=[
+  {n:'Central Security Operations',d:'Sentrl · all malls',u:2,m:[['Central Operator Nora','Morning handover complete. All mall security rooms connected to the central view.','09:05'],['sys','Code Adam · Al Kout Mall waterfront entrance · live video on wall 2','17:41'],['Supervisor Fahad (Mobile)','Child found at the food court and reunited with parents. Closing.','17:47']]},
+  {n:'360 Kuwait security room',d:'Mall room · View+ · CNTRL',u:4,m:[['sys','360 Kuwait car park LPR gates · network link down · Edge unit recording locally','14:02'],['Eng. Khaled (IT)','Fault traced to the basement switch. Replacement arriving 20:00.','14:36'],['Supervisor Dana','Guard posted at the B2 exit barrier until the gates are back online.','14:41']]},
+  {n:'Ahmadi malls · Kout, Khiran, Warehouse',d:'Mall rooms · View+ · CNTRL',u:0,m:[['Officer Yousef','Al Khiran Mall evacuation drill complete. Cleared in 7 min 20 s.','11:05'],['Health monitoring','The Warehouse Mall loading-dock recorder disk errors rising. Replace within 5 days.','11:20'],['Officer Yousef','Work order raised. Spare recorder arriving tomorrow.','11:32']]}];
+const UNITS=[['Response Team A1','360 Kuwait · Food Court','online'],['Supervisor Fahad','Al Kout Mall · Promenade','online'],['Response Team K2','Al Khiran Mall · Marina Walk','online'],['Patrol Car P3','Sama centres · mobile patrol','online'],['Response Team W1','The Warehouse Mall · Docks','offline']];
+V.comm=()=>{
+  const m=h('div',{class:'view'});
+  const chans=h('div',{}),msgs=h('div',{class:'msgs','aria-live':'polite'}),title=h('h2',{});
+  const inp=h('input',{placeholder:'Type a message to the channel…','aria-label':'Message',id:'msgIn'});
+  const drawCh=()=>{chans.innerHTML='';CHANS.forEach((c,i)=>chans.append(h('button',{class:'chan','aria-pressed':S.chan===i,on:{click:()=>{S.chan=i;c.u=0;drawCh();drawMsgs()}}},h('b',{},c.n,c.u?h('span',{class:'unread'},c.u):''),h('small',{},c.d))))};
+  const drawMsgs=()=>{const c=CHANS[S.chan];title.textContent=c.n;msgs.innerHTML='';c.m.forEach(([w,t,tm])=>msgs.append(w==='sys'?h('div',{class:'msg sys'},'⚠ '+t+' · '+tm):h('div',{class:'msg'+(w==='You'?' me':'')},h('div',{class:'who'},w,h('time',{},tm)),t)));msgs.scrollTop=msgs.scrollHeight};
+  const send=e=>{e.preventDefault();const v=inp.value.trim();if(!v)return;const now=new Date().toTimeString().slice(0,5);const c=CHANS[S.chan],idx=S.chan;c.m.push(['You',v,now]);inp.value='';drawMsgs();
+    setTimeout(()=>{c.m.push([['Central Operator','360 Kuwait Security Room','Ahmadi Malls Security Room'][idx],'Copy that. Acknowledged and actioning now.',new Date().toTimeString().slice(0,5)]);if(S.tab==='comm'&&S.chan===idx)drawMsgs()},1400)};
+  const units=h('div',{});UNITS.forEach(([n,l,s])=>{const b=h('button',{class:'call','aria-label':'Call '+n,html:'<svg viewBox="0 0 24 24"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.7 2z"/></svg>',on:{click:()=>{if(s==='offline'){toast(n+' is unreachable');return}const live=b.classList.toggle('live');toast(live?`Radio link open with ${n}`:`Call with ${n} ended`)}}});
+    units.append(h('div',{class:'unit'},h('div',{},h('b',{},n),h('small',{},l),' ',h('span',{class:'st '+s},s)),b))});
+  const bc=[h('button',{class:'btn-olive',style:'margin:12px 14px;width:calc(100% - 28px)',on:{click:()=>{CHANS.forEach(c=>c.m.push(['sys','Broadcast from Executive: all mall security rooms report status by 18:00',new Date().toTimeString().slice(0,5)]));drawMsgs();toast('Broadcast sent to all mall security rooms')}}},'Broadcast to all malls'),h('button',{class:'pill-btn',style:'margin:0 14px 14px;width:calc(100% - 28px);justify-content:center',on:{click:e=>{const b=e.currentTarget;const on=b.dataset.on!=='1';b.dataset.on=on?'1':'0';b.textContent=on?'Stop sharing with Civil Defence':'Share live view with Kuwait Fire Force';toast(on?'Controlled live view shared with Kuwait Fire Force (RAMsys Share)':'Live view sharing stopped')}}},'Share live view with Kuwait Fire Force')];
+  m.append(h('section',{class:'panel'},h('div',{class:'ph'},h('h2',{},'Communications'),h('span',{class:'hint'},'On-premise channels between the central room, mall security rooms and response teams (Mobile & Eye)')),
+    h('div',{class:'comms'},h('div',{},chans),h('div',{class:'thread'},h('div',{class:'ph'},title),msgs,h('form',{class:'compose',on:{submit:send}},inp,h('button',{class:'btn-olive',type:'submit'},'Send'))),
+      h('div',{class:'side'},h('h4',{},'Response teams'),units,bc))));
+  drawCh();drawMsgs();
+  return m;
+};
+
+/* ---------- render ---------- */
+function render(){const main=$('#main');main.innerHTML='';main.append(V[S.tab]());main.append(h('div',{class:'demo-tag'},'Mall areas (m²) as provided. Map positions are approximate. All operational figures are sample data for demonstration.'))}
+let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(render,250)});
+
+/* ---------- header interactions ---------- */
+const NOTES=[{t:'Code Adam · Al Kout Mall waterfront entrance',w:'17:41 · Ahmadi',c:'#ef3e3e',go:'alarm'},{t:'360 Kuwait car park LPR gates on Edge recording',w:'14:02 · Hawalli',c:'#f59e2b',go:'ops'},{t:'Food court footfall forecast above 85% on Friday',w:'15:10 · 360 Kuwait',c:'#a34be0',go:'act'},{t:'New message from 360 Kuwait security room',w:'14:41 · Hawalli',c:'#4b8cff',go:'comm'}];
+function closeLayer(){$('#layer').innerHTML=''}
+function pop(content){closeLayer();const p=h('div',{class:'pop'},...content);$('#layer').append(p);setTimeout(()=>document.addEventListener('click',function f(e){if(!p.contains(e.target)){closeLayer();document.removeEventListener('click',f)}}),0)}
+$('#bellBtn').onclick=()=>{const unread=NOTES.filter(n=>!n.read).length;pop([h('h4',{},`Notifications (${unread})`,h('button',{on:{click:e=>{e.stopPropagation();NOTES.forEach(n=>n.read=1);updBell();closeLayer()}}},'Mark all read')),...NOTES.map(n=>h('button',{class:'note'+(n.read?' read':''),style:`--c:${n.c}`,on:{click:()=>{n.read=1;updBell();closeLayer();go(n.go)}}},h('i'),h('span',{},n.t,h('small',{},n.w))))])};
+function updBell(){const u=NOTES.filter(n=>!n.read).length;$('#bellCount').textContent=u;$('#bellCount').hidden=!u}
+const userMenu=()=>pop([h('h4',{},'Executive Mohammed'),...[['My profile','Profile: Executive · Central Security Operations · read access to all Kuwait malls'],['Report preferences','Daily executive brief scheduled for 07:00'],['Switch language (العربية)','Arabic interface available in production build'],['Sign out','Signed out (demo). Session kept for preview.']].map(([l,t])=>h('button',{class:'menu-item',on:{click:()=>{closeLayer();toast(t)}}},l))]);
+$('#userBtn').onclick=userMenu;$('#caretBtn').onclick=userMenu;
+$('#blurBtn').onclick=()=>{S.blur=!S.blur;$('#app').classList.toggle('blur-mode',S.blur);$('#blurBtn').classList.toggle('blur-on',S.blur);$('#blurBtn').setAttribute('aria-pressed',S.blur);$('#blurBtn .sw span').textContent=S.blur?'ON':'OFF'};
+function modal(title,body){closeLayer();const bg=h('div',{class:'modal-bg',on:{click:e=>{if(e.target===bg)closeLayer()}}},h('div',{class:'modal',role:'dialog','aria-modal':'true','aria-label':title},h('div',{class:'ph'},h('h2',{},title),h('button',{class:'x','aria-label':'Close',on:{click:closeLayer}},'×')),h('div',{class:'body'},body)));$('#layer').append(bg)}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLayer()});
+
+/* Ask RAMsys (simulated) */
+$('#askForm').onsubmit=e=>{e.preventDefault();const q=$('#askIn').value.trim()||'Show recent alarms';const ql=q.toLowerCase();
+  const city=CNAMES.find(c=>MALL[c].keys.some(k=>ql.includes(k)));const type=TYPES.find(t=>ql.includes(t.k.toLowerCase().split(' ')[0]));
+  let sites=city?ALLSITES.filter(s=>s.city===city):ALLSITES;let ans,rows;
+  if(ql.includes('offline')||ql.includes('down')){const off=sites.filter(s=>s.status!=='online');ans=`${off.length} security zone${off.length===1?'':'s'} ${city?'at '+HOSP[city]+' ':''}are not fully online right now.`;rows=off.map(s=>[s.name,HOSP[s.city],s.status])}
+  else{const t=type?type.k:null;rows=sites.map(s=>[s.name,HOSP[s.city],t?s.alarms[t]:Object.values(s.alarms).reduce((a,b)=>a+b,0)]).sort((a,b)=>b[2]-a[2]).slice(0,6);const tot=rows.reduce((a,r)=>a+r[2],0);
+    ans=`Found ${tot} ${t?t.toLowerCase()+' ':''}alarms ${city?'at '+HOSP[city]:'across all monitored malls'} this quarter. ${rows[0]?rows[0][0]+' has the most activity.':''}`}
+  const p=h('p',{class:'typing',style:'margin:0 0 6px'});
+  modal('Ask RAMsys',h('div',{},h('div',{class:'ai-q'},'You asked: “'+q+'”'),p,h('table',{},h('thead',{},h('tr',{},h('th',{},'Zone'),h('th',{},'Mall'),h('th',{},type||ql.includes('offline')?'Value':'Alarms'))),h('tbody',{},...rows.map(r=>h('tr',{},...r.map(x=>h('td',{},String(x))))))),
+    h('div',{style:'display:flex;gap:8px;margin-top:14px;flex-wrap:wrap'},...['Offline zones at 360','Crowd alarms at Al Kout','Forced door alarms at Sama Jahra'].map(s=>h('button',{class:'pill-btn',on:{click:()=>{$('#askIn').value=s;$('#askForm').requestSubmit()}}},s)))));
+  let i=0;const iv=setInterval(()=>{p.textContent=ans.slice(0,i+=3);if(i>=ans.length){clearInterval(iv);p.classList.remove('typing')}},18)};
+
+/* ---------- network backdrop ---------- */
+(function(){const c=$('#net'),x=c.getContext('2d');let W,H,P=[];const red=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function size(){W=c.width=innerWidth;H=c.height=innerHeight;P=Array.from({length:Math.round(W*H/26000)},()=>({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*.15,vy:(Math.random()-.5)*.15,r:Math.random()*2+1}))}
+  function frame(){const g=x.createRadialGradient(W*.5,H*.4,0,W*.5,H*.4,Math.max(W,H)*.8);g.addColorStop(0,'#1b2b3c');g.addColorStop(1,'#0a0f16');x.fillStyle=g;x.fillRect(0,0,W,H);
+    for(const p of P){if(!red){p.x+=p.vx;p.y+=p.vy}if(p.x<0||p.x>W)p.vx*=-1;if(p.y<0||p.y>H)p.vy*=-1}
+    x.lineWidth=1;for(let i=0;i<P.length;i++)for(let j=i+1;j<P.length;j++){const a=P[i],b=P[j],d=Math.hypot(a.x-b.x,a.y-b.y);if(d<170){x.strokeStyle=`rgba(120,170,210,${.16*(1-d/170)})`;x.beginPath();x.moveTo(a.x,a.y);x.lineTo(b.x,b.y);x.stroke()}}
+    for(const p of P){x.fillStyle='rgba(140,190,230,.35)';x.beginPath();x.arc(p.x,p.y,p.r,0,7);x.fill()}
+    if(!red)requestAnimationFrame(frame)}
+  addEventListener('resize',size);size();frame()})();
+
+/* boot */
+const hash=(location.hash||'').slice(1);if(TABS.some(t=>t[0]===hash))S.tab=hash;
+buildNav();render();updBell();
+</script>
+
+</body>
+</html>
