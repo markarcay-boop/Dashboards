@@ -68,6 +68,16 @@
   .titles{flex:1;min-width:260px}
   input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:10px;font:500 15px Inter;outline:none}
   input[type=password]:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,77,0,.2)}
+  .prices{display:flex;flex-direction:column;gap:8px}
+  .pr{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  .pr span{font-weight:600;font-size:14px;display:flex;flex-direction:column}
+  .pr span small{font-weight:400;color:var(--muted);font-size:12px}
+  .pr b{font-family:Oswald;font-weight:700;font-size:26px;color:var(--peach);white-space:nowrap}
+  .pr b small{font-size:13px;color:var(--muted);font-family:Inter;font-weight:600;margin-left:2px}
+  .pr.best{border-color:rgba(255,77,0,.55);background:linear-gradient(90deg, rgba(255,77,0,.14), transparent), var(--panel2)}
+  .pr.on{outline:2px solid var(--orange);outline-offset:1px}
+  .yourprice{margin-top:12px;font-size:15px;color:var(--muted);text-align:right}
+  .yourprice b{font-family:Oswald;font-size:22px;color:#fff;margin-left:6px}
   .sw{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.15)}
   .swatches span.lbl{font-size:12px;color:var(--muted);margin-right:4px;letter-spacing:1.5px;text-transform:uppercase}
 
@@ -379,6 +389,17 @@
           </div>
         </div>
       </section>
+
+      <section class="card pricecard">
+        <h2>Prices</h2>
+        <p class="sub">Per player, in UAE dirhams. Sleeves don't change the price.</p>
+        <div class="prices">
+          <div class="pr"><span>Upper jersey only</span><b>40 <small>AED</small></b></div>
+          <div class="pr"><span>Shorts only</span><b>30 <small>AED</small></b></div>
+          <div class="pr best"><span>Full jersey<small>Jersey + shorts</small></span><b>70 <small>AED</small></b></div>
+        </div>
+        <div class="yourprice" id="yourPrice">Your total: <b>—</b></div>
+      </section>
     </div>
 
     <!-- RIGHT: form -->
@@ -422,9 +443,9 @@
         <fieldset id="w_items">
           <legend>What are you ordering? <span class="req">*</span></legend>
           <div class="seg" data-group="items">
-            <label class="tick"><input type="radio" name="items" value="upper"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Upper jersey only</b></span></label>
-            <label class="tick"><input type="radio" name="items" value="shorts"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Shorts only</b></span></label>
-            <label class="tick"><input type="radio" name="items" value="full"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Full jersey</b><small>Jersey + shorts</small></span></label>
+            <label class="tick"><input type="radio" name="items" value="upper"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Upper jersey only</b><small>40 AED · with or without sleeves</small></span></label>
+            <label class="tick"><input type="radio" name="items" value="shorts"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Shorts only</b><small>30 AED</small></span></label>
+            <label class="tick"><input type="radio" name="items" value="full"><span class="box"><svg viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3L13 4.5"/></svg></span><span class="t"><b>Full jersey</b><small>Jersey + shorts · 70 AED</small></span></label>
           </div>
           <span class="fielderr">Please choose what you're ordering.</span>
         </fieldset>
@@ -599,6 +620,7 @@
   const SIZES = ["XS","S","M","L","XL","2XL","3XL","4XL"];
   const STYLES = ["basketball", "volleyball", "volleyball_men"];
   const STYLE_LABEL = { basketball: "Basketball", volleyball: "Volleyball (Women's)", volleyball_men: "Volleyball (Men's) / Badminton" };
+  const PRICE = { upper: 40, shorts: 30, full: 70 }; // AED per player
   const SLEEVE_LABEL = { with: "With sleeves", without: "Sleeveless" };
   const defaultSleeve = st => st === "basketball" ? "without" : "with";
   const ITEM_LABEL = { upper: "Upper jersey only", shorts: "Shorts only", full: "Full jersey" };
@@ -761,6 +783,9 @@
       ...(hasU ? [["Sleeves", SLEEVE_LABEL[state.sleeves] || "—"], ["Print", `${jn.value.trim() || "—"} #${n || "—"}`], ["Jersey size", sz.upper || "—"]] : []),
       ...(hasS ? [["Shorts", POCKET_LABEL[state.pockets] || "—"], ["Shorts size", sz.shorts || "—"]] : []),
     ];
+    if (it) rows.push(["Price", PRICE[it] + " AED"]);
+    $$(".pr").forEach((el, i) => el.classList.toggle("on", ["upper", "shorts", "full"][i] === it));
+    $("#yourPrice").innerHTML = 'Your total: <b>' + (it ? PRICE[it] + " AED" : "—") + "</b>";
     $("#sumList").innerHTML = rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("");
   }
 
