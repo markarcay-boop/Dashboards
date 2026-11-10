@@ -9,3 +9,4 @@ Demo dashboards by ITV (Intertech Vision). All data shown is fictional sample da
 - [Lead Spin - KO COACH kiosk](lead-spin/)
 - [Ghusais CFO activity dashboard](ghusais-cfo/)
 - [Mark Arcay - Technical Capability Profile](mark-arcay/)
+- [G6 Jersey Configurator](g6-jersey/)
