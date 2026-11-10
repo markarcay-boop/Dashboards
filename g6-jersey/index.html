@@ -486,15 +486,7 @@
           <button type="button" class="btn ghost" id="resetBtn">Clear form</button>
         </div>
 
-        <div class="sharebox" id="shareBox">
-          <div class="msg warn show" id="shareWhy">This page can't save your entry directly for you. Send your order to the organiser instead:</div>
-          <pre id="shareText"></pre>
-          <div class="actions">
-            <a class="btn wa" id="waLink" href="#" target="_blank" rel="noopener">Send via WhatsApp</a>
-            <button type="button" class="btn ghost" id="copyOrder">Copy order text</button>
-          </div>
-        </div>
-      </form>
+</form>
     </section>
   </div>
 
@@ -571,7 +563,7 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="config.js"></script>
+<script src="config.js?v=2"></script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -596,7 +588,8 @@
     diff: false, sizeOne: null, sizeUpper: null, sizeShorts: null,
     styleTouched: false, sleevesTouched: false, editingId: null, editingDoc: null
   };
-  const API_URL = String((window.G6_CONFIG || {}).apiUrl || "").trim();
+  const DEFAULT_API = "https://script.google.com/macros/s/AKfycbxrANP0ylH0X56pYOA-duN4TsHWDWoSoqD2BQc6d9jgBmllWnrkqmzd97PgfLPffNzg/exec";
+  const API_URL = String((window.G6_CONFIG || {}).apiUrl || DEFAULT_API).trim();
   let isOwner = false, adminKey = "", apiOk = false;
   let entries = []; // [{id, ...data}]
   const ls = {
@@ -820,19 +813,7 @@
     clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 2200);
   }
 
-  function showShare(doc, why) {
-    $("#shareWhy").textContent = why;
-    const txt = orderText(doc);
-    $("#shareText").textContent = txt;
-    $("#waLink").href = "https://wa.me/?text=" + encodeURIComponent(txt);
-    $("#shareBox").classList.add("show");
-    $("#shareBox").scrollIntoView({ behavior: "smooth", block: "center" });
-  }
-
-  $("#copyOrder").addEventListener("click", async () => {
-    try { await navigator.clipboard.writeText($("#shareText").textContent); toast("Order copied"); }
-    catch { toast("Copy blocked. Select the text and copy it manually."); }
-  });
+  function showShare(doc, why) { showMsg("err", why); }
 
   // ---------- Backend (Google Apps Script) ----------
   async function api(action, payload = {}) {
@@ -869,14 +850,13 @@
   let saving = false;
   $("#f").addEventListener("submit", async e => {
     e.preventDefault();
-    hideMsg(); $("#shareBox").classList.remove("show");
+    hideMsg();
     if (isClosed() && !isOwner) { applyDeadline(); return; }
     if (!validate()) { showMsg("err", "A few details are missing. Check the highlighted fields."); return; }
     const doc = buildDoc();
 
     if (!apiOk) {
-      showShare(doc, API_URL ? "The order list can't be reached right now. Send your order to the organiser instead:"
-                             : "Online saving isn't switched on yet. Send your order to the organiser instead:");
+      showMsg("err", "The order list can't be reached right now. Please check your connection and reload the page.");
       return;
     }
     if (saving) return;
@@ -898,7 +878,7 @@
       const code = err && err.code;
       if (code === "closed") { showMsg("err", ERR.closed); applyDeadline(); }
       else if (ERR[code]) showMsg("err", ERR[code]);
-      else showShare(doc, "Couldn't save just now. Try again in a moment, or send your order to the organiser instead:");
+      else showMsg("err", "Couldn't save just now. Please try again in a moment.");
     } finally {
       saving = false; $("#submitBtn").disabled = false;
       $("#submitBtn").textContent = state.editingId ? "Save changes" : "Submit my jersey";
@@ -915,7 +895,7 @@
     $("#formTitle").textContent = "Your details";
     $("#submitBtn").textContent = "Submit my jersey";
     $("#cancelEdit").style.display = "none";
-    $("#shareBox").classList.remove("show");
+    
     sync();
   }
   $("#resetBtn").addEventListener("click", () => { resetForm(); hideMsg(); });
@@ -1306,14 +1286,14 @@
   (async () => {
     if (!API_URL) {
       setStatus();
-      $("#players").innerHTML = `<div class="empty">The shared order list isn't switched on yet. You can still fill in the form and send your order by message.</div>`;
+      $("#players").innerHTML = `<div class="empty">The shared order list isn't switched on yet. Please check your connection and reload the page.</div>`;
       $("#stats").innerHTML = "";
       return;
     }
     try { await load(); apiOk = true; }
     catch {
       apiOk = false;
-      $("#players").innerHTML = `<div class="empty">Couldn't load the order list. You can still fill in the form and send your order by message.</div>`;
+      $("#players").innerHTML = `<div class="empty">Couldn't load the order list. Please check your connection and reload the page.</div>`;
       $("#stats").innerHTML = "";
     }
     setStatus(); renderRoster();
