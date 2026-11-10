@@ -1,6 +1,5 @@
 // G6 Jersey Configurator settings.
-// Paste your Google Apps Script web app URL between the quotes (see apps-script/SETUP.md).
-// Example: "https://script.google.com/macros/s/AKfy.../exec"
+// Google Apps Script web app URL (see apps-script/SETUP.md).
 window.G6_CONFIG = {
-  apiUrl: ""
+  apiUrl: "https://script.google.com/macros/s/AKfycbxrANP0ylH0X56pYOA-duN4TsHWDWoSoqD2BQc6d9jgBmllWnrkqmzd97PgfLPffNzg/exec"
 };
