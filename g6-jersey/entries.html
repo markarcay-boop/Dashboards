@@ -282,7 +282,7 @@
       doc.text(`${list.length} entr${list.length === 1 ? "y" : "ies"} · To be collected ${aed(list.reduce((a, e) => a + price(e), 0))}${filters.length ? " · Filter: " + filters.join(", ") : ""}`, 30, 16.5);
       doc.text(today, W - 10, 13, { align: "right" });
     };
-    const pdfCols = COLS.filter(c => c.k !== "updatedAt");
+    const pdfCols = COLS.filter(c => c.k !== "updatedAt" && c.k !== "price");
     const total = list.reduce((a, e) => a + price(e), 0);
     doc.autoTable({
       head: [pdfCols.map(c => c.h)],
@@ -293,15 +293,11 @@
       headStyles: { fillColor: [255, 77, 0], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [252, 246, 240] },
       columnStyles: {
-        0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 30 }, 5: { halign: "right", fontStyle: "bold", cellWidth: 21 },
-        6: { halign: "center", fontStyle: "bold", textColor: [20, 140, 80], cellWidth: 12 },
-        8: { fontStyle: "bold" }, 9: { halign: "center", fontStyle: "bold", cellWidth: 10 }, 10: { halign: "center" },
-        11: { halign: "center" }, 13: { cellWidth: 34 }
+        0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 34 },
+        5: { halign: "center", fontStyle: "bold", textColor: [20, 140, 80], cellWidth: 12 },
+        7: { fontStyle: "bold" }, 8: { halign: "center", fontStyle: "bold", cellWidth: 10 }, 9: { halign: "center" },
+        10: { halign: "center" }, 12: { cellWidth: 38 }
       },
-      foot: [[{ content: `TOTAL AMOUNT TO BE COLLECTED · ${list.length} entr${list.length === 1 ? "y" : "ies"}`, colSpan: 5, styles: { halign: "right" } },
-              { content: aed(total), styles: { halign: "right" } }, { content: "", colSpan: 8 }]],
-      showFoot: "lastPage",
-      footStyles: { fillColor: [255, 229, 180], textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10 },
       didDrawPage: header
     });
     // Price summary under the table
