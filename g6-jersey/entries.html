@@ -56,6 +56,15 @@
   tfoot tr.grand td.price{color:var(--orange);font-size:19px}
   .stat.total{border-color:rgba(255,77,0,.6);background:linear-gradient(90deg, rgba(255,77,0,.16), transparent), var(--panel2)}
   .stat.total b{color:var(--peach)}
+  .stat.ok b{color:var(--ok)} .stat.due b{color:#ffb648}
+  td.paid{text-align:center;min-width:92px}
+  .paybtn{min-width:76px;height:30px;border-radius:8px;border:1.5px dashed #46526a;background:transparent;color:var(--muted);font:700 12.5px Inter;cursor:pointer}
+  .paybtn:hover{border-color:var(--ok)}
+  .paybtn:hover:empty::after{content:"Mark paid";font-weight:600;color:var(--muted)}
+  .paybtn.on{border:1.5px solid rgba(62,207,142,.6);background:rgba(62,207,142,.14);color:var(--ok)}
+  .paybtn:disabled{opacity:.5;cursor:wait}
+  tr.is-paid td{background:rgba(62,207,142,.04)}
+  tfoot tr.okrow td.price{color:var(--ok)} tfoot tr.duerow td.price{color:#ffb648}
   .muted{color:var(--muted)}
   .empty{color:var(--muted);text-align:center;padding:30px}
   .status{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:8px}
@@ -107,6 +116,11 @@
         <option value="full">Full jersey</option>
         <option value="upper">Upper jersey only</option>
       </select>
+      <select id="fPaid">
+        <option value="">Paid & unpaid</option>
+        <option value="paid">Paid</option>
+        <option value="unpaid">Unpaid</option>
+      </select>
       <select id="fSex">
         <option value="">All</option>
         <option value="Male">Male</option>
@@ -139,6 +153,7 @@
   const PRICE = { upper: 40, full: 70 }; // AED per player
   const price = e => PRICE[e.items] || 0;
   const aed = n => n.toLocaleString("en-US") + " AED";
+  const sum = list => list.reduce((a, e) => a + price(e), 0);
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -150,6 +165,8 @@
     { k: "kitStyle", h: "Kit style", v: e => STYLE[e.kitStyle] || e.kitStyle },
     { k: "items", h: "Order", v: e => ITEMS[e.items] || e.items },
     { k: "price", h: "Cost", v: e => price(e) ? aed(price(e)) : "No price", cls: "price", sortv: e => price(e) },
+    { k: "paid", h: "Paid", v: e => e.paid ? "Paid" : "", cls: "paid", sortv: e => e.paid ? 1 : 0, html: e =>
+      `<button type="button" class="paybtn${e.paid ? " on" : ""}" data-pay="${esc(e.id)}" title="${e.paid ? "Paid " + esc(fmt(e.paid)) + ". Click to mark unpaid" : "Click to mark as paid"}">${e.paid ? "✓ Paid" : ""}</button>` },
     { k: "sleeves", h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-" },
     { k: "jerseyName", h: "Name on jersey", v: e => e.jerseyName || "-", cls: "jn" },
     { k: "jerseyNumber", h: "No.", v: e => e.jerseyNumber === "" ? "-" : e.jerseyNumber, cls: "num",
@@ -184,9 +201,10 @@
 
   function view() {
     const q = $("#q").value.trim().toLowerCase();
-    const st = $("#fStyle").value, it = $("#fItems").value, sx = $("#fSex").value;
+    const st = $("#fStyle").value, it = $("#fItems").value, sx = $("#fSex").value, pd = $("#fPaid").value;
     let list = entries.filter(e =>
       (!st || e.kitStyle === st) && (!it || e.items === it) && (!sx || e.sex === sx) &&
+      (!pd || (pd === "paid" ? !!e.paid : !e.paid)) &&
       (!q || [e.fullName, e.jerseyName, e.jerseyNumber, e.notes, STYLE[e.kitStyle]].join(" ").toLowerCase().includes(q)));
     const col = COLS.find(c => c.k === sortKey);
     const key = col.sortv || col.v;
@@ -206,16 +224,20 @@
       [cnt(e => e.items === "full"), "Full jersey"], [cnt(e => e.items === "upper"), "Upper jersey only"],
       [cnt(e => e.upperSize), "Jerseys"], [cnt(e => e.shortsSize), "Shorts"]
     ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("") +
-      `<div class="stat total"><b>${aed(list.reduce((a, e) => a + price(e), 0))}</b><span>To be collected${list.length === entries.length ? "" : " (shown)"}</span></div>`;
+      `<div class="stat total"><b>${aed(sum(list))}</b><span>To be collected${list.length === entries.length ? "" : " (shown)"}</span></div>` +
+      `<div class="stat ok"><b>${aed(sum(list.filter(e => e.paid)))}</b><span>Collected · ${list.filter(e => e.paid).length} paid</span></div>` +
+      `<div class="stat due"><b>${aed(sum(list.filter(e => !e.paid)))}</b><span>Outstanding · ${list.filter(e => !e.paid).length} unpaid</span></div>`;
 
     const head = `<thead><tr>${COLS.map(c => `<th data-k="${c.k}">${c.h}${!c.nosort && c.k === sortKey ? `<span class="ar">${sortDir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}</tr></thead>`;
     const body = list.length
-      ? list.map((e, i) => `<tr>${COLS.map(c => `<td class="${c.cls || ""}">${esc(c.v(e, i))}</td>`).join("")}</tr>`).join("")
+      ? list.map((e, i) => `<tr class="${e.paid ? "is-paid" : ""}">${COLS.map(c => `<td class="${c.cls || ""}">${c.html ? c.html(e) : esc(c.v(e, i))}</td>`).join("")}</tr>`).join("")
       : `<tr><td colspan="${COLS.length}" class="empty">${entries.length ? "No entries match your search." : "No entries yet."}</td></tr>`;
     const amt = it => list.filter(e => e.items === it).length;
     const foot = list.length ? `<tfoot>${["full", "upper", "shorts"].filter(it => amt(it) && PRICE[it]).map(it =>
         `<tr class="sub"><td colspan="${PRICE_COL}">${ITEMS[it]} · ${amt(it)} × ${PRICE[it]} AED</td><td class="price">${aed(amt(it) * PRICE[it])}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>`).join("")}
-      <tr class="grand"><td colspan="${PRICE_COL}">Total amount to be collected · ${list.length} entr${list.length === 1 ? "y" : "ies"}</td><td class="price">${aed(list.reduce((a, e) => a + price(e), 0))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr></tfoot>` : "";
+      <tr class="grand"><td colspan="${PRICE_COL}">Total amount to be collected · ${list.length} entr${list.length === 1 ? "y" : "ies"}</td><td class="price">${aed(sum(list))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>
+      <tr class="sub okrow"><td colspan="${PRICE_COL}">Collected · ${list.filter(e => e.paid).length} paid</td><td class="price">${aed(sum(list.filter(e => e.paid)))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>
+      <tr class="sub duerow"><td colspan="${PRICE_COL}">Outstanding · ${list.filter(e => !e.paid).length} unpaid</td><td class="price">${aed(sum(list.filter(e => !e.paid)))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr></tfoot>` : "";
     $("#tbl").innerHTML = head + "<tbody>" + body + "</tbody>" + foot;
   }
   $("#tbl").addEventListener("click", e => {
@@ -224,7 +246,22 @@
     if (sortKey === c.k) sortDir = -sortDir; else { sortKey = c.k; sortDir = 1; }
     render();
   });
-  ["#q", "#fStyle", "#fItems", "#fSex"].forEach(s => $(s).addEventListener("input", render));
+  $("#tbl").addEventListener("click", async e => {
+    const b = e.target.closest("[data-pay]"); if (!b) return;
+    const ent = entries.find(x => x.id === b.dataset.pay); if (!ent) return;
+    b.disabled = true;
+    try {
+      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "setPaid", id: ent.id, paid: !ent.paid, password: SETTINGS_PASSWORD }) });
+      const j = await r.json();
+      if (!j || !j.ok) throw new Error(j && j.error);
+      if (Array.isArray(j.entries)) entries = j.entries.filter(x => x && x.id);
+      render(); toast(ent.paid ? "Marked unpaid" : "Marked as paid");
+    } catch (err) {
+      b.disabled = false;
+      toast(String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) to enable Paid." : "Couldn't save. Try again.");
+    }
+  });
+  ["#q", "#fStyle", "#fItems", "#fSex", "#fPaid"].forEach(s => $(s).addEventListener("input", render));
 
   // ---------- PDF ----------
   function buildPdf() {
@@ -234,7 +271,7 @@
     const list = view();
     const filters = [
       $("#fStyle").value && STYLE[$("#fStyle").value], $("#fItems").value && ITEMS[$("#fItems").value],
-      $("#fSex").value, $("#q").value.trim() && `search "${$("#q").value.trim()}"`
+      $("#fSex").value, $("#fPaid").value && ($("#fPaid").value === "paid" ? "Paid" : "Unpaid"), $("#q").value.trim() && `search "${$("#q").value.trim()}"`
     ].filter(Boolean);
     const today = new Date().toLocaleString(undefined, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const header = () => {
@@ -256,12 +293,13 @@
       headStyles: { fillColor: [255, 77, 0], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [252, 246, 240] },
       columnStyles: {
-        0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 34 }, 5: { halign: "right", fontStyle: "bold", cellWidth: 18 },
-        7: { fontStyle: "bold" }, 8: { halign: "center", fontStyle: "bold", cellWidth: 10 }, 9: { halign: "center" },
-        10: { halign: "center" }, 12: { cellWidth: 38 }
+        0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 30 }, 5: { halign: "right", fontStyle: "bold", cellWidth: 21 },
+        6: { halign: "center", fontStyle: "bold", textColor: [20, 140, 80], cellWidth: 12 },
+        8: { fontStyle: "bold" }, 9: { halign: "center", fontStyle: "bold", cellWidth: 10 }, 10: { halign: "center" },
+        11: { halign: "center" }, 13: { cellWidth: 34 }
       },
       foot: [[{ content: `TOTAL AMOUNT TO BE COLLECTED · ${list.length} entr${list.length === 1 ? "y" : "ies"}`, colSpan: 5, styles: { halign: "right" } },
-              { content: aed(total), styles: { halign: "right" } }, { content: "", colSpan: 7 }]],
+              { content: aed(total), styles: { halign: "right" } }, { content: "", colSpan: 8 }]],
       showFoot: "lastPage",
       footStyles: { fillColor: [255, 229, 180], textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10 },
       didDrawPage: header
@@ -273,7 +311,9 @@
       startY: y, theme: "grid", tableWidth: 120, margin: { left: W - 128, right: 8, bottom: 14 },
       head: [["Order", "Qty", "Unit price", "Amount"]],
       body: ["full", "upper"].map(it => { const q = list.filter(e => e.items === it).length; return [ITEMS[it], q, aed(PRICE[it]), aed(q * PRICE[it])]; }),
-      foot: [["Total to be collected", list.filter(e => PRICE[e.items]).length, "", aed(total)]],
+      foot: [["Total to be collected", list.filter(e => PRICE[e.items]).length, "", aed(total)],
+             ["Collected (paid)", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
+             ["Outstanding (unpaid)", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
       styles: { fontSize: 9.5, cellPadding: 2.2, lineColor: [210, 214, 222], lineWidth: .2, textColor: [25, 25, 25] },
       headStyles: { fillColor: [255, 77, 0], textColor: 255, fontStyle: "bold" },
       footStyles: { fillColor: [255, 229, 180], textColor: [20, 20, 20], fontStyle: "bold", fontSize: 11 },

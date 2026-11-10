@@ -6,7 +6,7 @@
  *
  * The web page talks to this script:
  *   GET  -> list of all entries (PINs are never sent back)
- *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin", ...}
+ *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin" | "setPaid", ...}
  *
  * Several people can submit at the same time: every write takes a script
  * lock, so rows are never lost or overwritten.
@@ -19,8 +19,11 @@ const DEADLINE = new Date('2026-11-17T23:59:59+04:00');
 
 const FIELDS = [
   'id', 'fullName', 'sex', 'kitStyle', 'items', 'sleeves', 'jerseyName', 'jerseyNumber',
-  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash'
+  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash', 'paid'
 ];
+// Password used by the Settings (entries) page to mark entries as paid.
+// You can override it with a Script Property named SETTINGS_PASSWORD.
+const DEFAULT_SETTINGS_PASSWORD = '0000';
 const ENUMS = {
   sex: ['Male', 'Female'],
   kitStyle: ['basketball', 'volleyball', 'volleyball_men'],
@@ -41,6 +44,11 @@ function sheet_() {
     sh.setFrozenRows(1);
     // Store everything as plain text so "07" and "00" stay as typed.
     sh.getRange(1, 1, sh.getMaxRows(), FIELDS.length).setNumberFormat('@');
+  }
+  // Keep the header row up to date when new columns are added (e.g. "paid").
+  const head = sh.getRange(1, 1, 1, FIELDS.length).getDisplayValues()[0];
+  if (head.join('|') !== FIELDS.join('|')) {
+    sh.getRange(1, 1, 1, FIELDS.length).setNumberFormat('@').setValues([FIELDS]).setFontWeight('bold');
   }
   return sh;
 }
@@ -70,6 +78,11 @@ function out_(obj) {
 function hash_(pin) {
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'g6-jersey:' + pin, Utilities.Charset.UTF_8);
   return Utilities.base64Encode(bytes);
+}
+
+function isSettings_(pw) {
+  const real = PropertiesService.getScriptProperties().getProperty('SETTINGS_PASSWORD') || DEFAULT_SETTINGS_PASSWORD;
+  return typeof pw === 'string' && pw === real;
 }
 
 function isAdmin_(key) {
@@ -168,6 +181,15 @@ function doPost(e) {
       const c = clean_(req.entry);
       if (!c) return out_({ ok: false, error: 'invalid' });
       const row = Object.assign({}, r, c, { updatedAt: now });
+      writeRow_(sh, r._row, row);
+      return out_({ ok: true, entries: list_() });
+    }
+
+    if (action === 'setPaid') {
+      if (!admin && !isSettings_(req.password)) return out_({ ok: false, error: 'not_admin' });
+      const r = rows_().find(x => x.id === req.id);
+      if (!r) return out_({ ok: false, error: 'not_found' });
+      const row = Object.assign({}, r, { paid: req.paid ? now : '' });
       writeRow_(sh, r._row, row);
       return out_({ ok: true, entries: list_() });
     }
