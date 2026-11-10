@@ -78,11 +78,11 @@
   </header>
 
   <section class="card login" id="loginCard">
-    <h2>Organiser login</h2>
-    <p>Enter the admin key you set in the Google Apps Script.</p>
-    <input type="password" id="key" placeholder="Admin key" autocomplete="off">
+    <h2>Settings</h2>
+    <p>Enter the settings password to view all entries.</p>
+    <input type="password" id="key" inputmode="numeric" placeholder="Password" autocomplete="off">
     <div class="err" id="loginErr"></div>
-    <button class="btn primary" id="loginBtn" type="button">Log in</button>
+    <button class="btn primary" id="loginBtn" type="button">Open entries</button>
   </section>
 
   <section class="card gone" id="mainCard">
@@ -109,7 +109,7 @@
       <div class="sp"></div>
       <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Loading…</span></div>
       <button class="btn primary" id="pdfBtn" type="button">Save as PDF</button>
-      <button class="btn ghost" id="logoutBtn" type="button">Log out</button>
+      <button class="btn ghost" id="logoutBtn" type="button">Lock</button>
     </div>
     <div class="tscroll"><table id="tbl"></table></div>
     <p class="muted" style="font-size:12.5px;margin:10px 2px 0">Click a column header to sort. The PDF follows the current search, filters and sort.</p>
@@ -155,14 +155,10 @@
     return d.toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
   }
 
-  let entries = [], adminKey = "", sortKey = "fullName", sortDir = 1, timer = null;
+  let entries = [], sortKey = "fullName", sortDir = 1, timer = null;
 
   function toast(t) { const el = $("#toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => el.classList.remove("show"), 2200); }
 
-  async function post(body) {
-    const r = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
-    return r.json();
-  }
   async function load() {
     const r = await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
     const j = await r.json();
@@ -267,33 +263,28 @@
     } catch { toast("Couldn't create the PDF."); }
   });
 
-  // ---------- Login ----------
-  async function login(key, silent) {
-    $("#loginBtn").disabled = true; $("#loginErr").textContent = "";
-    try {
-      const j = await post({ action: "admin", adminKey: key });
-      if (!j || !j.ok) { if (!silent) $("#loginErr").textContent = "Admin key not accepted."; return false; }
-      adminKey = key;
-      try { sessionStorage.setItem("g6-admin", key); } catch {}
-      $("#loginCard").classList.add("gone"); $("#mainCard").classList.remove("gone");
-      try { await load(); setStatus(true); } catch { setStatus(false); render(); }
-      clearInterval(timer);
-      timer = setInterval(async () => { if (document.hidden) return; try { await load(); setStatus(true); } catch { setStatus(false); } }, 15000);
-      return true;
-    } catch {
-      if (!silent) $("#loginErr").textContent = "Couldn't reach the order list. Check your connection.";
-      return false;
-    } finally { $("#loginBtn").disabled = false; }
+  // ---------- Password gate (Settings) ----------
+  const SETTINGS_PASSWORD = "0000";
+  async function unlock() {
+    try { sessionStorage.setItem("g6-settings", "1"); } catch {}
+    $("#loginCard").classList.add("gone"); $("#mainCard").classList.remove("gone");
+    try { await load(); setStatus(true); } catch { setStatus(false); render(); }
+    clearInterval(timer);
+    timer = setInterval(async () => { if (document.hidden) return; try { await load(); setStatus(true); } catch { setStatus(false); } }, 15000);
   }
-  $("#loginBtn").addEventListener("click", () => { const k = $("#key").value; if (k) login(k); });
-  $("#key").addEventListener("keydown", e => { if (e.key === "Enter" && e.target.value) login(e.target.value); });
+  function tryLogin() {
+    if ($("#key").value === SETTINGS_PASSWORD) unlock();
+    else { $("#loginErr").textContent = "Wrong password."; $("#key").select(); }
+  }
+  $("#loginBtn").addEventListener("click", tryLogin);
+  $("#key").addEventListener("keydown", e => { if (e.key === "Enter") tryLogin(); });
   $("#logoutBtn").addEventListener("click", () => {
-    adminKey = ""; clearInterval(timer); entries = [];
-    try { sessionStorage.removeItem("g6-admin"); } catch {}
+    clearInterval(timer); entries = [];
+    try { sessionStorage.removeItem("g6-settings"); } catch {}
     $("#mainCard").classList.add("gone"); $("#loginCard").classList.remove("gone"); $("#key").value = "";
   });
-  let saved = ""; try { saved = sessionStorage.getItem("g6-admin") || ""; } catch {}
-  if (saved) login(saved, true);
+  let ok = false; try { ok = sessionStorage.getItem("g6-settings") === "1"; } catch {}
+  if (ok) unlock();
 })();
 </script>
 </body>

@@ -59,6 +59,15 @@
   .titles h1{margin:0;font-family:Oswald;font-weight:700;font-size:30px;letter-spacing:1.5px;text-transform:uppercase}
   .titles p{margin:2px 0 0;color:var(--muted);font-size:14px}
   .swatches{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .setbtn{display:inline-flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);color:var(--text);
+    font:600 14px Inter;padding:10px 14px;border-radius:11px;cursor:pointer;transition:border-color .15s, transform .2s}
+  .setbtn svg{width:18px;height:18px;transition:transform .4s}
+  .setbtn:hover{border-color:var(--orange)}
+  .setbtn:hover svg{transform:rotate(60deg)}
+  @media (max-width:560px){.setbtn span{display:none}}
+  .titles{flex:1;min-width:260px}
+  input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:10px;font:500 15px Inter;outline:none}
+  input[type=password]:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,77,0,.2)}
   .sw{width:22px;height:22px;border-radius:6px;border:1px solid rgba(255,255,255,.15)}
   .swatches span.lbl{font-size:12px;color:var(--muted);margin-right:4px;letter-spacing:1.5px;text-transform:uppercase}
 
@@ -255,6 +264,10 @@
       <div class="sw" style="background:#FFC8C3" title="#FFC8C3 Smoothie"></div>
       <div class="sw" style="background:#FFFFFF" title="#FFFFFF White"></div>
     </div>
+    <button type="button" class="setbtn" id="settingsBtn" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </button>
   </header>
 
   <section class="countdown" id="countdown" aria-live="polite">
@@ -512,7 +525,6 @@
       </div>
       <div class="sp"></div>
       <div class="actions">
-        <a class="btn ghost sm" href="entries.html">Open entries table</a>
         <button class="btn primary sm" id="dlPdf" type="button" style="display:none">Save as PDF</button>
         <button class="btn ghost sm" id="copyCsv" type="button">Copy as CSV</button>
         <button class="btn ghost sm" id="dlCsv" type="button" style="display:none">Download CSV</button>
@@ -524,7 +536,7 @@
     <div class="tscroll"><table id="fullTable"></table></div>
   </section>
 
-  <footer>G6 · Team kit order form · <a href="#" id="adminLink" style="color:#8a94a6">Organiser login</a> · <a href="entries.html" style="color:#8a94a6">Entries table</a></footer>
+  <footer>G6 · Team kit order form · <a href="#" id="adminLink" style="color:#8a94a6">Organiser login</a></footer>
 </div>
 
 <div class="lb" id="lb"><img id="lbImg" alt="Full size reference design"></div>
@@ -560,6 +572,18 @@
     <div class="actions" style="margin-top:14px">
       <button class="btn primary" id="adminOk" type="button">Log in</button>
       <button class="btn ghost" id="adminCancel" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+<div class="modal" id="setModal">
+  <div class="card">
+    <h2>Settings</h2>
+    <p class="sub">Enter the settings password to open the entries table.</p>
+    <input type="password" id="setInput" inputmode="numeric" autocomplete="off" placeholder="Password">
+    <div class="msg err" id="setErr" style="margin-top:10px"></div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn primary" id="setOk" type="button">Open entries table</button>
+      <button class="btn ghost" id="setCancel" type="button">Cancel</button>
     </div>
   </div>
 </div>
@@ -1014,6 +1038,25 @@
   $("#adminOk").addEventListener("click", submitAdmin);
   $("#adminInput").addEventListener("keydown", e => { if (e.key === "Enter") submitAdmin(); });
   $("#adminCancel").addEventListener("click", () => $("#adminModal").classList.remove("show"));
+
+  // ---------- Settings (entries table) ----------
+  const SETTINGS_PASSWORD = "0000";
+  function openSettings() {
+    let ok = false; try { ok = sessionStorage.getItem("g6-settings") === "1"; } catch {}
+    if (ok) { location.href = "entries.html"; return; }
+    $("#setInput").value = ""; $("#setErr").className = "msg err";
+    $("#setModal").classList.add("show"); setTimeout(() => $("#setInput").focus(), 50);
+  }
+  function submitSettings() {
+    if ($("#setInput").value === SETTINGS_PASSWORD) {
+      try { sessionStorage.setItem("g6-settings", "1"); } catch {}
+      location.href = "entries.html";
+    } else { $("#setErr").textContent = "Wrong password."; $("#setErr").classList.add("show"); $("#setInput").select(); }
+  }
+  $("#settingsBtn").addEventListener("click", openSettings);
+  $("#setOk").addEventListener("click", submitSettings);
+  $("#setInput").addEventListener("keydown", e => { if (e.key === "Enter") submitSettings(); });
+  $("#setCancel").addEventListener("click", () => $("#setModal").classList.remove("show"));
 
   // ---------- Roster render ----------
   function canManage(e) { return isOwner || !isClosed(); }
