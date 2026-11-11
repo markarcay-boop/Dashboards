@@ -282,38 +282,92 @@
       doc.text(`${list.length} entr${list.length === 1 ? "y" : "ies"} · To be collected ${aed(list.reduce((a, e) => a + price(e), 0))}${filters.length ? " · Filter: " + filters.join(", ") : ""}`, 30, 16.5);
       doc.text(today, W - 10, 13, { align: "right" });
     };
-    const pdfCols = COLS.filter(c => c.k !== "updatedAt" && c.k !== "price");
-    const total = list.reduce((a, e) => a + price(e), 0);
-    doc.autoTable({
-      head: [pdfCols.map(c => c.h)],
-      body: list.map((e, i) => pdfCols.map(c => String(c.v(e, i)))),
-      startY: 28, theme: "grid",
-      margin: { left: 8, right: 8, top: 28, bottom: 14 },
-      styles: { fontSize: 8.5, cellPadding: 1.8, lineColor: [210, 214, 222], lineWidth: .2, textColor: [25, 25, 25], overflow: "linebreak" },
-      headStyles: { fillColor: [255, 77, 0], textColor: 255, fontStyle: "bold" },
-      alternateRowStyles: { fillColor: [252, 246, 240] },
-      columnStyles: {
-        0: { cellWidth: 8, halign: "center" }, 1: { cellWidth: 34 },
-        5: { halign: "center", fontStyle: "bold", textColor: [20, 140, 80], cellWidth: 12 },
-        7: { fontStyle: "bold" }, 8: { halign: "center", fontStyle: "bold", cellWidth: 10 }, 9: { halign: "center" },
-        10: { halign: "center" }, 12: { cellWidth: 38 }
-      },
-      didDrawPage: header
+    const total = sum(list);
+    const ORANGE = [255, 77, 0], DARK = [32, 38, 52], PEACH = [255, 229, 180];
+    const base = { fontSize: 8.8, cellPadding: 1.9, lineColor: [210, 214, 222], lineWidth: .2, textColor: [25, 25, 25], overflow: "linebreak" };
+
+    // Group: kit style -> order type (full, upper)
+    const STYLE_ORDER = ["basketball", "volleyball", "volleyball_men"];
+    const groups = [];
+    STYLE_ORDER.forEach(st => ["full", "upper", "shorts"].forEach(it => {
+      const rows = list.filter(e => e.kitStyle === st && e.items === it);
+      if (rows.length) groups.push({ st, it, rows });
+    }));
+
+    header();
+    let y = 28, lastStyle = null;
+    const ensure = need => { if (y > H - need) { doc.addPage(); header(); y = 28; return true; } return false; };
+    const banner = (st, cont) => {
+      const all = list.filter(e => e.kitStyle === st);
+      doc.setFillColor(...ORANGE); doc.rect(8, y, W - 16, 9, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text(STYLE[st].toUpperCase() + (cont ? "  (continued)" : ""), 11, y + 6.2);
+      doc.setFontSize(9.5); doc.setFont("helvetica", "normal");
+      doc.text(`${all.length} player${all.length === 1 ? "" : "s"}`, W - 11, y + 6.2, { align: "right" });
+      y += 13;
+    };
+
+    if (!groups.length) {
+      doc.setTextColor(90); doc.setFontSize(11); doc.text("No entries match the current filters.", 10, 36); y = 44;
+    }
+
+    groups.forEach(g => {
+      if (g.st !== lastStyle) { ensure(45); banner(g.st, false); lastStyle = g.st; }
+      else if (ensure(30)) banner(g.st, true);
+      doc.setTextColor(25); doc.setFont("helvetica", "bold"); doc.setFontSize(10.5);
+      doc.text(`${ITEMS[g.it] || g.it}  ·  ${g.rows.length}`, 9, y);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(110);
+      if (PRICE[g.it]) doc.text(`${g.rows.length} × ${aed(PRICE[g.it])} = ${aed(g.rows.length * PRICE[g.it])}`, W - 9, y, { align: "right" });
+      y += 2.5;
+
+      const hasU = g.it !== "shorts", hasS = g.it !== "upper";
+      const cols = [
+        { h: "#", v: (e, i) => i + 1, st: { cellWidth: 8, halign: "center" } },
+        { h: "Full name", v: e => e.fullName, st: { cellWidth: 46 } },
+        { h: "Sex", v: e => e.sex, st: { cellWidth: 15 } },
+        { h: "Paid", v: e => e.paid ? "Paid" : "", st: { cellWidth: 13, halign: "center", fontStyle: "bold", textColor: [20, 140, 80] } },
+        ...(hasU ? [
+          { h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-", st: { cellWidth: 24 } },
+          { h: "Name on jersey", v: e => e.jerseyName || "-", st: { cellWidth: 34, fontStyle: "bold" } },
+          { h: "No.", v: e => e.jerseyNumber === "" ? "-" : e.jerseyNumber, st: { cellWidth: 12, halign: "center", fontStyle: "bold" } },
+          { h: "Jersey size", v: e => e.upperSize || "-", st: { cellWidth: 18, halign: "center" } }] : []),
+        ...(hasS ? [
+          { h: "Shorts size", v: e => e.shortsSize || "-", st: { cellWidth: 18, halign: "center" } },
+          { h: "Pockets", v: e => POCKET[e.pockets] || "-", st: { cellWidth: 28 } }] : []),
+        { h: "Notes", v: e => e.notes || "", st: {} }
+      ];
+      doc.autoTable({
+        startY: y, theme: "grid",
+        margin: { left: 8, right: 8, top: 28, bottom: 14 },
+        head: [cols.map(c => c.h)],
+        body: g.rows.map((e, i) => cols.map(c => String(c.v(e, i)))),
+        styles: base,
+        headStyles: { fillColor: DARK, textColor: 255, fontStyle: "bold" },
+        alternateRowStyles: { fillColor: [252, 246, 240] },
+        columnStyles: Object.fromEntries(cols.map((c, i) => [i, c.st])),
+        didDrawPage: header
+      });
+      y = doc.lastAutoTable.finalY + 8;
     });
-    // Price summary under the table
-    let y = doc.lastAutoTable.finalY + 8;
-    if (y > H - 50) { doc.addPage(); header(); y = 30; }
+
+    // Summary per category
+    ensure(70);
+    doc.setFillColor(...DARK); doc.rect(8, y, W - 16, 9, "F");
+    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+    doc.text("SUMMARY", 11, y + 6.2);
+    y += 12;
     doc.autoTable({
-      startY: y, theme: "grid", tableWidth: 120, margin: { left: W - 128, right: 8, bottom: 14 },
-      head: [["Order", "Qty", "Unit price", "Amount"]],
-      body: ["full", "upper"].map(it => { const q = list.filter(e => e.items === it).length; return [ITEMS[it], q, aed(PRICE[it]), aed(q * PRICE[it])]; }),
-      foot: [["Total to be collected", list.filter(e => PRICE[e.items]).length, "", aed(total)],
-             ["Collected (paid)", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
-             ["Outstanding (unpaid)", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
-      styles: { fontSize: 9.5, cellPadding: 2.2, lineColor: [210, 214, 222], lineWidth: .2, textColor: [25, 25, 25] },
-      headStyles: { fillColor: [255, 77, 0], textColor: 255, fontStyle: "bold" },
-      footStyles: { fillColor: [255, 229, 180], textColor: [20, 20, 20], fontStyle: "bold", fontSize: 11 },
-      columnStyles: { 1: { halign: "center" }, 2: { halign: "right" }, 3: { halign: "right" } }
+      startY: y, theme: "grid", tableWidth: 170, margin: { left: 8, right: 8, top: 28, bottom: 14 },
+      head: [["Category", "Order", "Qty", "Unit price", "Amount"]],
+      body: groups.filter(g => PRICE[g.it]).map(g => [STYLE[g.st], ITEMS[g.it], g.rows.length, aed(PRICE[g.it]), aed(g.rows.length * PRICE[g.it])]),
+      foot: [["Total to be collected", "", list.filter(e => PRICE[e.items]).length, "", aed(total)],
+             ["Collected (paid)", "", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
+             ["Outstanding (unpaid)", "", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
+      styles: { ...base, fontSize: 9.5, cellPadding: 2.2 },
+      headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },
+      footStyles: { fillColor: PEACH, textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10.5 },
+      columnStyles: { 0: { cellWidth: 62 }, 2: { halign: "center" }, 3: { halign: "right" }, 4: { halign: "right" } },
+      didDrawPage: header
     });
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
