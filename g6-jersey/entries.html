@@ -65,7 +65,7 @@
   td.paid{text-align:center;min-width:92px}
   .paybtn{min-width:76px;height:30px;border-radius:8px;border:1.5px dashed #46526a;background:transparent;color:var(--muted);font:700 12.5px Inter;cursor:pointer}
   .paybtn:hover{border-color:var(--ok)}
-  .paybtn:hover:empty::after{content:"Mark paid";font-weight:600;color:var(--muted)}
+  .paybtn:hover:empty::after{content:"Record";font-weight:600;color:var(--muted)}
   .paybtn.on{border:1.5px solid rgba(62,207,142,.6);background:rgba(62,207,142,.14);color:var(--ok)}
   .paybtn:disabled{opacity:.5;cursor:wait}
   tr.is-paid td{background:rgba(62,207,142,.04)}
@@ -82,6 +82,23 @@
   .login input{width:100%;margin-bottom:12px}
   .err{color:#ff9a9a;font-size:13px;min-height:18px;margin-bottom:8px}
   .gone{display:none !important}
+  .modalbg{position:fixed;inset:0;background:rgba(5,8,12,.78);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
+  .paycard{width:100%;max-width:440px}
+  .paycard h2{margin:0;font-family:Oswald;letter-spacing:1px;text-transform:uppercase}
+  .opts{display:flex;flex-direction:column;gap:8px}
+  .opt{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--panel2);border:1.5px solid var(--line);color:var(--text);border-radius:11px;padding:11px 13px;cursor:pointer;font:inherit}
+  .opt b{font-size:14.5px} .opt span{font-size:12px;color:var(--muted)}
+  .opt:hover{border-color:#4a5670}
+  .opt.on{border-color:var(--orange);background:rgba(255,77,0,.10)}
+  .opt[data-v="cash"].on{border-color:var(--ok);background:rgba(62,207,142,.10)}
+  .opt[data-v="transfer"].on{border-color:#5aa9ff;background:rgba(90,169,255,.10)}
+  #payComment{width:100%;resize:vertical;margin:6px 0 10px;font:500 14px Inter}
+  #payProof a{color:var(--peach)}
+  .paybtn.on.cash{border-color:rgba(62,207,142,.6);color:var(--ok)}
+  .paybtn.on.transfer{border-color:rgba(90,169,255,.6);background:rgba(90,169,255,.12);color:#8cc4ff}
+  td.paynote{min-width:140px;max-width:220px;color:var(--peach)}
+  textarea{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:9px 11px;border-radius:9px;outline:none}
+  textarea:focus{border-color:var(--orange)}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);opacity:0;background:#1f2838;border:1px solid var(--line);padding:11px 16px;border-radius:11px;font-size:14px;font-weight:600;transition:all .2s;pointer-events:none}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
@@ -123,7 +140,9 @@
       </select>
       <select id="fPaid">
         <option value="">Paid & unpaid</option>
-        <option value="paid">Paid</option>
+        <option value="paid">Paid (all)</option>
+        <option value="cash">Paid by cash</option>
+        <option value="transfer">Paid by bank transfer</option>
         <option value="unpaid">Unpaid</option>
       </select>
       <select id="fSex">
@@ -139,6 +158,25 @@
     <div class="tscroll"><table id="tbl"></table></div>
     <p class="muted" style="font-size:12.5px;margin:10px 2px 0">Click a column header to sort. The PDF follows the current search, filters and sort.</p>
   </section>
+</div>
+<div class="modalbg gone" id="payModal">
+  <div class="card paycard">
+    <h2>Payment</h2>
+    <p class="muted" id="payWho" style="margin:2px 0 14px;font-size:14px"></p>
+    <div class="opts">
+      <button type="button" class="opt" data-v="unpaid"><b>Unpaid</b><span>Nothing received yet</span></button>
+      <button type="button" class="opt" data-v="cash"><b>Paid by cash</b><span>Received in hand</span></button>
+      <button type="button" class="opt" data-v="transfer"><b>Paid by bank transfer</b><span>Set automatically when a proof is uploaded</span></button>
+    </div>
+    <p class="muted" id="payProof" style="font-size:13px;margin:10px 2px 12px"></p>
+    <label class="muted" for="payComment" style="font-size:13px;font-weight:600">Comment</label>
+    <textarea id="payComment" maxlength="200" rows="3" placeholder="e.g. Paid to Mark at practice, 12 Nov"></textarea>
+    <div class="err" id="payErr"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn primary" id="paySave" type="button">Save</button>
+      <button class="btn ghost" id="payCancel" type="button">Cancel</button>
+    </div>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -162,6 +200,9 @@
   const price = e => PRICE[pkey(e)] || 0;
   const aed = n => n.toLocaleString("en-US") + " AED";
   const sum = list => list.reduce((a, e) => a + price(e), 0);
+  // How an entry was paid: "cash", "transfer" (bank transfer, incl. any entry with an uploaded proof) or "" (paid, method not set)
+  const method = e => !e.paid ? "" : e.paidBy === "cash" ? "cash" : (e.paidBy === "transfer" || e.hasProof) ? "transfer" : "other";
+  const METHOD_LABEL = { cash: "Cash", transfer: "Bank transfer", other: "Paid" };
   const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   let proofs = {};
   async function loadProofs() {
@@ -182,11 +223,12 @@
     { k: "kitStyle", h: "Kit style", v: e => STYLE[e.kitStyle] || e.kitStyle },
     { k: "items", h: "Order", v: e => ITEMS[e.items] || e.items },
     { k: "price", h: "Cost", v: e => price(e) ? aed(price(e)) : "No price", cls: "price", sortv: e => price(e) },
-    { k: "paid", h: "Paid", v: e => e.paid ? "Paid" : "", cls: "paid", sortv: e => e.paid ? 1 : 0, html: e =>
-      `<button type="button" class="paybtn${e.paid ? " on" : ""}" data-pay="${esc(e.id)}" title="${e.paid ? "Paid " + esc(fmt(e.paid)) + ". Click to mark unpaid" : "Click to mark as paid"}">${e.paid ? "✓ Paid" : ""}</button>` },
+    { k: "paid", h: "Paid", v: e => e.paid ? METHOD_LABEL[method(e)] : "", cls: "paid", sortv: e => e.paid ? (method(e) === "cash" ? 1 : 2) : 0, html: e =>
+      `<button type="button" class="paybtn${e.paid ? " on " + method(e) : ""}" data-pay="${esc(e.id)}" title="${e.paid ? esc(METHOD_LABEL[method(e)]) + " · " + esc(fmt(e.paid)) + ". Click to change" : "Click to record a payment"}">${e.paid ? "✓ " + (method(e) === "cash" ? "Cash" : method(e) === "transfer" ? "Transfer" : "Paid") : ""}</button>` },
     { k: "proof", h: "Proof", v: e => e.hasProof ? "Yes" : "", cls: "proof", sortv: e => e.hasProof ? 1 : 0, html: e => !e.hasProof ? "" :
       proofs[e.id] ? `<a class="eyebtn" href="${esc(proofs[e.id])}" target="_blank" rel="noopener" title="View proof of payment (opens in Google Drive)">${EYE}<span>View</span></a>`
                    : `<span class="eyebtn off" title="Loading link…">${EYE}<span>View</span></span>` },
+    { k: "payComment", h: "Payment note", v: e => e.payComment || "", cls: "notes paynote" },
     { k: "sleeves", h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-" },
     { k: "jerseyName", h: "Name on jersey", v: e => e.jerseyName || "-", cls: "jn" },
     { k: "jerseyNumber", h: "No.", v: e => e.jerseyNumber === "" ? "-" : e.jerseyNumber, cls: "num",
@@ -224,8 +266,8 @@
     const st = $("#fStyle").value, it = $("#fItems").value, sx = $("#fSex").value, pd = $("#fPaid").value;
     let list = entries.filter(e =>
       (!st || e.kitStyle === st) && (!it || e.items === it) && (!sx || e.sex === sx) &&
-      (!pd || (pd === "paid" ? !!e.paid : !e.paid)) &&
-      (!q || [e.fullName, e.jerseyName, e.jerseyNumber, e.notes, STYLE[e.kitStyle]].join(" ").toLowerCase().includes(q)));
+      (!pd || (pd === "paid" ? !!e.paid : pd === "unpaid" ? !e.paid : method(e) === pd)) &&
+      (!q || [e.fullName, e.jerseyName, e.jerseyNumber, e.notes, e.payComment, STYLE[e.kitStyle]].join(" ").toLowerCase().includes(q)));
     const col = COLS.find(c => c.k === sortKey);
     const key = col.sortv || col.v;
     list.sort((a, b) => {
@@ -246,6 +288,8 @@
     ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("") +
       `<div class="stat total"><b>${aed(sum(list))}</b><span>To be collected${list.length === entries.length ? "" : " (shown)"}</span></div>` +
       `<div class="stat ok"><b>${aed(sum(list.filter(e => e.paid)))}</b><span>Collected · ${list.filter(e => e.paid).length} paid</span></div>` +
+      `<div class="stat"><b>${aed(sum(list.filter(e => method(e) === "cash")))}</b><span>Cash · ${list.filter(e => method(e) === "cash").length}</span></div>` +
+      `<div class="stat"><b>${aed(sum(list.filter(e => method(e) === "transfer")))}</b><span>Bank transfer · ${list.filter(e => method(e) === "transfer").length}</span></div>` +
       `<div class="stat due"><b>${aed(sum(list.filter(e => !e.paid)))}</b><span>Outstanding · ${list.filter(e => !e.paid).length} unpaid</span></div>`;
 
     const head = `<thead><tr>${COLS.map(c => `<th data-k="${c.k}">${c.h}${!c.nosort && c.k === sortKey ? `<span class="ar">${sortDir > 0 ? "▲" : "▼"}</span>` : ""}</th>`).join("")}</tr></thead>`;
@@ -257,6 +301,7 @@
         `<tr class="sub"><td colspan="${PRICE_COL}">${PRICE_LABEL[k]} · ${amt(k)} × ${PRICE[k]} AED</td><td class="price">${aed(amt(k) * PRICE[k])}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>`).join("")}
       <tr class="grand"><td colspan="${PRICE_COL}">Total amount to be collected · ${list.length} entr${list.length === 1 ? "y" : "ies"}</td><td class="price">${aed(sum(list))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>
       <tr class="sub okrow"><td colspan="${PRICE_COL}">Collected · ${list.filter(e => e.paid).length} paid</td><td class="price">${aed(sum(list.filter(e => e.paid)))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>
+      ${["cash", "transfer", "other"].filter(m => list.some(e => method(e) === m)).map(m => `<tr class="sub"><td colspan="${PRICE_COL}">&nbsp;&nbsp;↳ ${m === "other" ? "Paid (method not recorded)" : METHOD_LABEL[m]} · ${list.filter(e => method(e) === m).length}</td><td class="price">${aed(sum(list.filter(e => method(e) === m)))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr>`).join("")}
       <tr class="sub duerow"><td colspan="${PRICE_COL}">Outstanding · ${list.filter(e => !e.paid).length} unpaid</td><td class="price">${aed(sum(list.filter(e => !e.paid)))}</td><td colspan="${COLS.length - PRICE_COL - 1}"></td></tr></tfoot>` : "";
     $("#tbl").innerHTML = head + "<tbody>" + body + "</tbody>" + foot;
   }
@@ -266,20 +311,48 @@
     if (sortKey === c.k) sortDir = -sortDir; else { sortKey = c.k; sortDir = 1; }
     render();
   });
-  $("#tbl").addEventListener("click", async e => {
-    const b = e.target.closest("[data-pay]"); if (!b) return;
-    const ent = entries.find(x => x.id === b.dataset.pay); if (!ent) return;
-    b.disabled = true;
+  // ---------- Payment window ----------
+  let payTarget = null;
+  function setPayChoice(v) {
+    document.querySelectorAll("#payModal .opt").forEach(o => o.classList.toggle("on", o.dataset.v === v));
+    payTarget.choice = v;
+  }
+  function openPay(id) {
+    const ent = entries.find(x => x.id === id); if (!ent) return;
+    payTarget = { id, choice: "" };
+    $("#payWho").textContent = `${ent.fullName}${ent.jerseyName ? ` · ${ent.jerseyName} #${ent.jerseyNumber}` : ""} · ${aed(price(ent))}`;
+    setPayChoice(!ent.paid ? "unpaid" : method(ent) === "other" ? "" : method(ent));
+    $("#payComment").value = ent.payComment || "";
+    $("#payProof").innerHTML = ent.hasProof
+      ? (proofs[ent.id] ? `Bank transfer proof uploaded · <a href="${esc(proofs[ent.id])}" target="_blank" rel="noopener">View proof</a>` : "Bank transfer proof uploaded")
+      : "No proof uploaded";
+    $("#payErr").textContent = "";
+    $("#payModal").classList.remove("gone");
+    setTimeout(() => $("#payComment").focus(), 50);
+  }
+  document.querySelectorAll("#payModal .opt").forEach(o => o.addEventListener("click", () => setPayChoice(o.dataset.v)));
+  $("#payCancel").addEventListener("click", () => $("#payModal").classList.add("gone"));
+  $("#payModal").addEventListener("click", e => { if (e.target.id === "payModal") $("#payModal").classList.add("gone"); });
+  $("#paySave").addEventListener("click", async () => {
+    if (!payTarget) return;
+    const c = payTarget.choice, btn = $("#paySave");
+    if (!c) { $("#payErr").textContent = "Choose cash or bank transfer (or Unpaid)."; return; }
+    btn.disabled = true; btn.textContent = "Saving…";
     try {
-      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "setPaid", id: ent.id, paid: !ent.paid, password: SETTINGS_PASSWORD }) });
+      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({
+        action: "setPaid", id: payTarget.id, paid: c !== "unpaid", paidBy: c === "unpaid" ? "" : c,
+        comment: $("#payComment").value, password: SETTINGS_PASSWORD }) });
       const j = await r.json();
       if (!j || !j.ok) throw new Error(j && j.error);
       if (Array.isArray(j.entries)) entries = j.entries.filter(x => x && x.id);
-      render(); loadProofs(); toast(ent.paid ? "Marked unpaid" : "Marked as paid");
+      $("#payModal").classList.add("gone"); render(); loadProofs();
+      toast(c === "unpaid" ? "Marked unpaid" : c === "cash" ? "Saved · paid by cash" : "Saved · paid by bank transfer");
     } catch (err) {
-      b.disabled = false;
-      toast(String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) to enable Paid." : "Couldn't save. Try again.");
-    }
+      $("#payErr").textContent = String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) first." : "Couldn't save. Try again.";
+    } finally { btn.disabled = false; btn.textContent = "Save"; }
+  });
+  $("#tbl").addEventListener("click", e => {
+    const b = e.target.closest("[data-pay]"); if (b) openPay(b.dataset.pay);
   });
   ["#q", "#fStyle", "#fItems", "#fSex", "#fPaid"].forEach(s => $(s).addEventListener("input", render));
 
@@ -291,7 +364,7 @@
     const list = view();
     const filters = [
       $("#fStyle").value && STYLE[$("#fStyle").value], $("#fItems").value && ITEMS[$("#fItems").value],
-      $("#fSex").value, $("#fPaid").value && ($("#fPaid").value === "paid" ? "Paid" : "Unpaid"), $("#q").value.trim() && `search "${$("#q").value.trim()}"`
+      $("#fSex").value, $("#fPaid").value && $("#fPaid").selectedOptions[0].textContent, $("#q").value.trim() && `search "${$("#q").value.trim()}"`
     ].filter(Boolean);
     const today = new Date().toLocaleString(undefined, { day: "2-digit", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" });
     const header = () => {
@@ -344,9 +417,10 @@
       const hasU = g.it !== "shorts", hasS = g.it !== "upper";
       const cols = [
         { h: "#", v: (e, i) => i + 1, st: { cellWidth: 8, halign: "center" } },
-        { h: "Full name", v: e => e.fullName, st: { cellWidth: 46 } },
+        { h: "Full name", v: e => e.fullName, st: { cellWidth: 40 } },
         { h: "Sex", v: e => e.sex, st: { cellWidth: 15 } },
-        { h: "Paid", v: e => e.paid ? "Paid" : "", st: { cellWidth: 13, halign: "center", fontStyle: "bold", textColor: [20, 140, 80] } },
+        { h: "Paid", v: e => e.paid ? (method(e) === "cash" ? "Cash" : method(e) === "transfer" ? "Transfer" : "Paid") : "", st: { cellWidth: 17, halign: "center", fontStyle: "bold", textColor: [20, 140, 80] } },
+        { h: "Payment note", v: e => e.payComment || "", st: { cellWidth: 30 } },
         ...(hasU ? [
           { h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-", st: { cellWidth: 24 } },
           { h: "Name on jersey", v: e => e.jerseyName || "-", st: { cellWidth: 34, fontStyle: "bold" } },
@@ -386,6 +460,8 @@
       }).filter(Boolean)),
       foot: [["Total to be collected", "", list.filter(e => price(e)).length, "", aed(total)],
              ["Collected (paid)", "", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
+             ["   Paid by cash", "", list.filter(e => method(e) === "cash").length, "", aed(sum(list.filter(e => method(e) === "cash")))],
+             ["   Paid by bank transfer", "", list.filter(e => method(e) === "transfer").length, "", aed(sum(list.filter(e => method(e) === "transfer")))],
              ["Outstanding (unpaid)", "", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
       styles: { ...base, fontSize: 9.5, cellPadding: 2.2 },
       headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },

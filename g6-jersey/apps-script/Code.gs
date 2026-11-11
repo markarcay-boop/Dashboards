@@ -19,8 +19,9 @@ const DEADLINE = new Date('2026-11-17T23:59:59+04:00');
 
 const FIELDS = [
   'id', 'fullName', 'sex', 'kitStyle', 'items', 'sleeves', 'jerseyName', 'jerseyNumber',
-  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash', 'paid', 'proofId', 'proofAt'
+  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash', 'paid', 'proofId', 'proofAt', 'paidBy', 'payComment'
 ];
+const PAID_BY = ['', 'cash', 'transfer'];
 // Payment proofs are saved privately in this Drive folder (created automatically).
 const PROOF_FOLDER_NAME = 'G6 Jersey Payment Proofs';
 const PROOF_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif', 'application/pdf': 'pdf' };
@@ -204,7 +205,7 @@ function doPost(e) {
       if (!r) return out_({ ok: false, error: 'not_found' });
       if (r.proofId) { try { DriveApp.getFileById(r.proofId).setTrashed(true); } catch (e) {} }
       const now = new Date().toISOString();
-      writeRow_(sheet_(), r._row, Object.assign({}, r, { proofId: file.getId(), proofAt: now, paid: r.paid || now }));
+      writeRow_(sheet_(), r._row, Object.assign({}, r, { proofId: file.getId(), proofAt: now, paid: r.paid || now, paidBy: 'transfer' }));
       return out_({ ok: true, entries: list_() });
     } finally {
       lk.releaseLock();
@@ -249,8 +250,10 @@ function doPost(e) {
       if (!admin && !isSettings_(req.password)) return out_({ ok: false, error: 'not_admin' });
       const r = rows_().find(x => x.id === req.id);
       if (!r) return out_({ ok: false, error: 'not_found' });
-      const row = Object.assign({}, r, { paid: req.paid ? now : '' });
-      writeRow_(sh, r._row, row);
+      const paidBy = PAID_BY.indexOf(String(req.paidBy || '')) >= 0 ? String(req.paidBy || '') : '';
+      const upd = { paid: req.paid ? (r.paid || now) : '', paidBy: req.paid ? (paidBy || r.paidBy || '') : '' };
+      if (req.comment !== undefined) upd.payComment = String(req.comment || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200);
+      writeRow_(sh, r._row, Object.assign({}, r, upd));
       return out_({ ok: true, entries: list_() });
     }
 
