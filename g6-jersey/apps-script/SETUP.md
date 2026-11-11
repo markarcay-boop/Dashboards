@@ -50,3 +50,12 @@ Commit the change. GitHub Pages updates within a minute or two.
   Change `DEADLINE` at the top of `Code.gs` if needed, then **Deploy > Manage deployments > Edit > New version**.
 - **If you edit Code.gs later**, always redeploy as a *new version* of the same deployment so the URL stays the same.
 - The Sheet itself is your raw data. Don't rename the `Orders` tab or its header row.
+
+## Payment proofs (Google Drive)
+
+- Members can attach a screenshot/photo of their payment (form or **Upload payment proof** on their card, using their PIN).
+  The entry is then marked **Paid** automatically.
+- Files are saved in a private Drive folder named **G6 Jersey Payment Proofs** (created on first upload). Only you can open them.
+- On the entries page (Settings), the **Proof → View** button opens the file in Google Drive.
+- After pasting the new Code.gs and deploying a new version, Google asks you to allow Drive access. If uploads fail with a
+  Drive error, open Apps Script, choose the function **authorizeDrive** in the toolbar, click **Run**, and allow access.

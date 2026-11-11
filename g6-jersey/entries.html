@@ -57,6 +57,11 @@
   .stat.total{border-color:rgba(255,77,0,.6);background:linear-gradient(90deg, rgba(255,77,0,.16), transparent), var(--panel2)}
   .stat.total b{color:var(--peach)}
   .stat.ok b{color:var(--ok)} .stat.due b{color:#ffb648}
+  td.proof{text-align:center}
+  .eyebtn{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,229,180,.35);color:var(--peach);text-decoration:none;font-size:12.5px;font-weight:600}
+  .eyebtn:hover{background:rgba(255,229,180,.1);border-color:var(--peach)}
+  .eyebtn svg{width:16px;height:16px}
+  .eyebtn.off{opacity:.45}
   td.paid{text-align:center;min-width:92px}
   .paybtn{min-width:76px;height:30px;border-radius:8px;border:1.5px dashed #46526a;background:transparent;color:var(--muted);font:700 12.5px Inter;cursor:pointer}
   .paybtn:hover{border-color:var(--ok)}
@@ -154,6 +159,15 @@
   const price = e => PRICE[e.items] || 0;
   const aed = n => n.toLocaleString("en-US") + " AED";
   const sum = list => list.reduce((a, e) => a + price(e), 0);
+  const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  let proofs = {};
+  async function loadProofs() {
+    try {
+      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "proofs", password: SETTINGS_PASSWORD }) });
+      const j = await r.json();
+      if (j && j.ok && j.proofs) { proofs = j.proofs; render(); }
+    } catch {}
+  }
   const $ = s => document.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -167,6 +181,9 @@
     { k: "price", h: "Cost", v: e => price(e) ? aed(price(e)) : "No price", cls: "price", sortv: e => price(e) },
     { k: "paid", h: "Paid", v: e => e.paid ? "Paid" : "", cls: "paid", sortv: e => e.paid ? 1 : 0, html: e =>
       `<button type="button" class="paybtn${e.paid ? " on" : ""}" data-pay="${esc(e.id)}" title="${e.paid ? "Paid " + esc(fmt(e.paid)) + ". Click to mark unpaid" : "Click to mark as paid"}">${e.paid ? "✓ Paid" : ""}</button>` },
+    { k: "proof", h: "Proof", v: e => e.hasProof ? "Yes" : "", cls: "proof", sortv: e => e.hasProof ? 1 : 0, html: e => !e.hasProof ? "" :
+      proofs[e.id] ? `<a class="eyebtn" href="${esc(proofs[e.id])}" target="_blank" rel="noopener" title="View proof of payment (opens in Google Drive)">${EYE}<span>View</span></a>`
+                   : `<span class="eyebtn off" title="Loading link…">${EYE}<span>View</span></span>` },
     { k: "sleeves", h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-" },
     { k: "jerseyName", h: "Name on jersey", v: e => e.jerseyName || "-", cls: "jn" },
     { k: "jerseyNumber", h: "No.", v: e => e.jerseyNumber === "" ? "-" : e.jerseyNumber, cls: "num",
@@ -255,7 +272,7 @@
       const j = await r.json();
       if (!j || !j.ok) throw new Error(j && j.error);
       if (Array.isArray(j.entries)) entries = j.entries.filter(x => x && x.id);
-      render(); toast(ent.paid ? "Marked unpaid" : "Marked as paid");
+      render(); loadProofs(); toast(ent.paid ? "Marked unpaid" : "Marked as paid");
     } catch (err) {
       b.disabled = false;
       toast(String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) to enable Paid." : "Couldn't save. Try again.");
@@ -394,8 +411,9 @@
     try { sessionStorage.setItem("g6-settings", "1"); } catch {}
     $("#loginCard").classList.add("gone"); $("#mainCard").classList.remove("gone");
     try { await load(); setStatus(true); } catch { setStatus(false); render(); }
+    loadProofs();
     clearInterval(timer);
-    timer = setInterval(async () => { if (document.hidden) return; try { await load(); setStatus(true); } catch { setStatus(false); } }, 15000);
+    timer = setInterval(async () => { if (document.hidden) return; try { await load(); setStatus(true); loadProofs(); } catch { setStatus(false); } }, 15000);
   }
   function tryLogin() {
     if ($("#key").value === SETTINGS_PASSWORD) unlock();

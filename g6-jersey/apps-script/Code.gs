@@ -6,7 +6,7 @@
  *
  * The web page talks to this script:
  *   GET  -> list of all entries (PINs are never sent back)
- *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin" | "setPaid", ...}
+ *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin" | "setPaid" | "uploadProof" | "proofs", ...}
  *
  * Several people can submit at the same time: every write takes a script
  * lock, so rows are never lost or overwritten.
@@ -19,8 +19,12 @@ const DEADLINE = new Date('2026-11-17T23:59:59+04:00');
 
 const FIELDS = [
   'id', 'fullName', 'sex', 'kitStyle', 'items', 'sleeves', 'jerseyName', 'jerseyNumber',
-  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash', 'paid'
+  'pockets', 'upperSize', 'shortsSize', 'notes', 'createdAt', 'updatedAt', 'pinHash', 'paid', 'proofId', 'proofAt'
 ];
+// Payment proofs are saved privately in this Drive folder (created automatically).
+const PROOF_FOLDER_NAME = 'G6 Jersey Payment Proofs';
+const PROOF_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/heic': 'heic', 'image/heif': 'heif', 'application/pdf': 'pdf' };
+const PROOF_MAX_BYTES = 8 * 1024 * 1024;
 // Password used by the Settings (entries) page to mark entries as paid.
 // You can override it with a Script Property named SETTINGS_PASSWORD.
 const DEFAULT_SETTINGS_PASSWORD = '0000';
@@ -67,8 +71,24 @@ function rows_() {
 
 function public_(o) {
   const c = {};
-  FIELDS.forEach(f => { if (f !== 'pinHash') c[f] = o[f] || ''; });
+  FIELDS.forEach(f => { if (f !== 'pinHash' && f !== 'proofId') c[f] = o[f] || ''; });
+  c.hasProof = !!o.proofId;
   return c;
+}
+
+function proofFolder_() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty('PROOF_FOLDER_ID');
+  if (id) { try { return DriveApp.getFolderById(id); } catch (e) {} }
+  const folder = DriveApp.createFolder(PROOF_FOLDER_NAME);
+  props.setProperty('PROOF_FOLDER_ID', folder.getId());
+  return folder;
+}
+
+// Run this once from the Apps Script editor (select it, click Run) if
+// Google needs you to grant Drive permission for payment proofs.
+function authorizeDrive() {
+  proofFolder_();
 }
 
 function out_(obj) {
@@ -149,6 +169,46 @@ function doPost(e) {
     if (!r) return out_({ ok: false, error: 'not_found' });
     if (!r.pinHash || r.pinHash !== hash_(String(req.pin || ''))) return out_({ ok: false, error: 'bad_pin' });
     return out_({ ok: true });
+  }
+
+  if (action === 'proofs') {
+    if (!admin && !isSettings_(req.password)) return out_({ ok: false, error: 'not_admin' });
+    const map = {};
+    rows_().forEach(r => { if (r.proofId) map[r.id] = 'https://drive.google.com/file/d/' + r.proofId + '/view'; });
+    return out_({ ok: true, proofs: map });
+  }
+
+  if (action === 'uploadProof') {
+    const r0 = rows_().find(x => x.id === req.id);
+    if (!r0) return out_({ ok: false, error: 'not_found' });
+    const pinOk = !!r0.pinHash && r0.pinHash === hash_(String(req.pin || ''));
+    if (!admin && !pinOk && !isSettings_(req.password)) return out_({ ok: false, error: 'bad_pin' });
+    const mime = String(req.mimeType || '').toLowerCase();
+    const ext = PROOF_TYPES[mime];
+    if (!ext || !req.data) return out_({ ok: false, error: 'bad_file' });
+    let bytes;
+    try { bytes = Utilities.base64Decode(String(req.data)); } catch (e) { return out_({ ok: false, error: 'bad_file' }); }
+    if (!bytes.length || bytes.length > PROOF_MAX_BYTES) return out_({ ok: false, error: 'too_large' });
+    const label = (r0.jerseyName || r0.fullName || 'entry').replace(/[^\w .-]/g, '').slice(0, 40);
+    const stamp = Utilities.formatDate(new Date(), 'Asia/Dubai', 'yyyy-MM-dd HHmm');
+    let file;
+    try {
+      file = proofFolder_().createFile(Utilities.newBlob(bytes, mime, `${label} ${r0.jerseyNumber ? '#' + r0.jerseyNumber + ' ' : ''}- ${r0.fullName} - ${stamp}.${ext}`));
+    } catch (e) {
+      return out_({ ok: false, error: 'drive', message: String(e) });
+    }
+    const lk = LockService.getScriptLock();
+    if (!lk.tryLock(20000)) return out_({ ok: false, error: 'busy' });
+    try {
+      const r = rows_().find(x => x.id === req.id);
+      if (!r) return out_({ ok: false, error: 'not_found' });
+      if (r.proofId) { try { DriveApp.getFileById(r.proofId).setTrashed(true); } catch (e) {} }
+      const now = new Date().toISOString();
+      writeRow_(sheet_(), r._row, Object.assign({}, r, { proofId: file.getId(), proofAt: now, paid: r.paid || now }));
+      return out_({ ok: true, entries: list_() });
+    } finally {
+      lk.releaseLock();
+    }
   }
 
   const lock = LockService.getScriptLock();
