@@ -126,7 +126,7 @@ label.f input:focus,label.f textarea:focus{outline:none;border-color:var(--team)
 .tile .v{font-family:var(--display);font-weight:800;font-size:30px;line-height:1.1}
 .tile .v small{font-size:15px;color:var(--muted);font-weight:600}
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
-table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:640px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;min-width:780px}
 th,td{padding:9px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle}
 th{background:#f3f6fc;font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 tr:last-child td{border-bottom:0}
@@ -261,6 +261,8 @@ const $ = (s, r=document) => r.querySelector(s);
 const $$ = (s, r=document) => [...r.querySelectorAll(s)];
 function esc(s){return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
 const norm = s => String(s||"").toLowerCase().replace(/[^a-z0-9À-￿]+/g," ").trim();
+const nameKey = s => norm(s).split(" ").sort().join(" ");
+const phoneKey = s => String(s||"").replace(/\D/g,"").slice(-9);
 const teamOf = id => TEAMS.find(t => t.id === id);
 const sportOf = id => SPORTS.find(s => s.id === id);
 const fmtDate = iso => { const d = new Date(iso); return isNaN(d) ? "" : d.toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"}); };
@@ -286,7 +288,9 @@ async function mockApi(action, p){
   if(action === "status") return {open: set.open !== false};
   if(action === "submit"){
     if(set.open === false) throw new Error("Registration is closed for this team.");
-    if(s.players.some(x => x.team === p.team && norm(x.fullName) === norm(p.fullName))) throw new Error("A profile with this name is already registered for this team. Ask your team admin if it needs to be replaced.");
+    for(const x of s.players){ const tn = (teamOf(x.team)||{}).name || x.team;
+      if(nameKey(x.fullName) === nameKey(p.fullName)) throw new Error(`This name is already registered under Team ${tn}. Each player can register only once — ask your team admin if your entry needs to be changed.`);
+      if(phoneKey(p.mobile).length >= 7 && phoneKey(x.mobile) === phoneKey(p.mobile)) throw new Error(`This mobile number is already registered under Team ${tn}. Each player can register only once — ask your team admin if your entry needs to be changed.`); }
     const now = new Date().toISOString();
     const {team,sports,fullName,mobile,email,emgName,emgRelation,emgPhone,photo,signature} = p;
     s.players.push({id:"p"+Date.now(), ts:now, signedAt:now, team,sports,fullName,mobile,email,emgName,emgRelation,emgPhone,photo,signature});
@@ -523,13 +527,13 @@ function renderStatus(d, t){
   const rows = d.players.map(p => { const c = complete(p), yn = v => v ? `<span class="yes" title="Complete">✓</span>` : `<span class="no" title="Missing">✗</span>`;
     return `<tr><td><b>${esc(p.fullName)}</b></td><td>${p.sports.map(s => sportOf(s) ? `<span class="pill" style="--sc:${sportOf(s).color}">${esc(sportOf(s).name)}</span>` : "").join("")}</td>
       <td class="c">${yn(c.contact)}</td><td class="c">${yn(c.emg)}</td><td class="c">${yn(c.photo)}</td><td class="c">${yn(c.oath)}</td><td>${esc(fmtDate(p.ts))}</td>
-      <td><button class="btn ghost sm" data-open="${esc(p.id)}">View</button></td></tr>`; }).join("");
+      <td style="white-space:nowrap"><button class="btn ghost sm" data-open="${esc(p.id)}">View</button> <button class="btn ghost sm" data-oath="${esc(p.id)}" ${c.oath?"":"disabled"}>Signed oath PDF</button></td></tr>`; }).join("");
   const hasRoster = SPORTS.some(s => (roster[s.id]||[]).length);
   const rosterHtml = !hasRoster ? `<p class="empty">No expected line-up yet. Add your player list per sport under <b>Settings</b> and this section will show who is still pending.</p>` :
     `<div class="roster">${SPORTS.filter(s => (roster[s.id]||[]).length).map(s => { const reg = bySport(d,s.id).map(p => norm(p.fullName));
       return `<div class="box"><h4>${s.icon} ${esc(s.name)}</h4><ul>${roster[s.id].map(n => { const ok = reg.includes(norm(n));
         return `<li><span>${esc(n)}</span>${ok ? `<span class="yes">✓ Done</span>` : `<span class="pill pend">Pending</span>`}</li>`; }).join("")}</ul></div>`; }).join("")}</div>`;
-  a.innerHTML = `<div class="tiles"><div class="tile" style="--sc:var(--team)"><div class="k">All players</div><div class="v">${d.players.length}</div></div>${tiles}</div>
+  a.innerHTML = `<div id="gmsg"></div><div class="tiles"><div class="tile" style="--sc:var(--team)"><div class="k">All players</div><div class="v">${d.players.length}</div></div>${tiles}</div>
     <div class="sec-h" style="--sc:var(--team)"><h3>Submitted profiles</h3></div>
     ${d.players.length ? `<div class="tablewrap"><table><thead><tr><th>Player</th><th>Sport</th><th class="c">Contact</th><th class="c">Emergency</th><th class="c">Photo</th><th class="c">Oath signed</th><th>Submitted</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>` : `<p class="empty">No players have submitted yet for Team ${esc(t.name)}.</p>`}
     <div class="sec-h" style="--sc:var(--team)"><h3>Expected line-up check</h3></div>${rosterHtml}`;
@@ -537,7 +541,7 @@ function renderStatus(d, t){
 function renderGallery(d, t){
   $("#abody").innerHTML = `<div id="gmsg"></div>` + SPORTS.map(s => { const list = bySport(d, s.id);
     return `<div class="sec-h" style="--sc:${s.color}"><h3>${s.icon} ${esc(s.name)}${s.sub?` <small style="font-size:14px;color:var(--muted)">${esc(s.sub)}</small>`:""} · ${list.length}</h3>
-      <button class="btn sm" data-pdf="${s.id}" ${list.length?"":"disabled"}>Download PDF</button></div>
+      <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-pdf="${s.id}" ${list.length?"":"disabled"}>Gallery PDF</button><button class="btn ghost sm" data-oaths="${s.id}" ${list.length?"":"disabled"}>Signed oaths PDF</button></span></div>
       ${list.length ? `<div class="gal">${list.map(p => `<button class="pcard" data-open="${esc(p.id)}"><img alt="" src="${safeImg(p.photo)}"><div><b>${esc(p.fullName)}</b><span>${esc(p.mobile)}</span></div></button>`).join("")}</div>` : `<p class="empty">No players yet.</p>`}`; }).join("");
 }
 function renderSettings(d, t){
@@ -638,11 +642,18 @@ async function galleryPdf(team, sport, players){
       x.textAlign = "left";
     }
     footer(x, `${stamp} · Venue: ${EVENT.venue}`, `Page ${pg+1} of ${total}`);
-    pages.push(c);
+    pages.push(toJpg(c));
   }
   savePdf(pages, `UnityGames_ClusterB_${team.name.replace(/\s+/g,"")}_${sport.name.replace(/\s+/g,"")}_Players.pdf`);
 }
 async function oathPdf(team, p){
+  savePdf([await oathPage(team, p)], `UnityGames_SignedOath_${team.name.replace(/\s+/g,"")}_${p.fullName.replace(/[^\w]+/g,"_")}.pdf`);
+}
+async function oathsPdf(team, sport, players){
+  const pages = []; for(const p of players) pages.push(await oathPage(team, p));
+  savePdf(pages, `UnityGames_ClusterB_${team.name.replace(/\s+/g,"")}_${sport.name.replace(/\s+/g,"")}_SignedOaths.pdf`);
+}
+async function oathPage(team, p){
   const {c, x} = await newPage(team, "OATH OF SPORTSMANSHIP", `Team ${team.name} · ${p.sports.map(s => sportOf(s) ? sportOf(s).name : s).join(", ")}`);
   const ph = await loadImg(safeImg(p.photo)), sg = await loadImg(safeImg(p.signature));
   if(ph){ x.save(); roundRect(x, PW-60-200, 262, 200, 250, 10); x.clip(); x.drawImage(ph, PW-60-200, 262, 200, 250); x.restore(); }
@@ -659,8 +670,9 @@ async function oathPdf(team, p){
   x.textAlign = "left"; x.font = `22px ${FONT}`; x.fillStyle = "#14213d"; y += 170;
   [["Mobile", p.mobile], ["Email", p.email || "—"], ["Emergency contact", `${p.emgName} (${p.emgRelation}) · ${p.emgPhone}`]].forEach(([k,v]) => { x.fillStyle = "#5b6780"; x.fillText(k, 60, y); x.fillStyle = "#14213d"; x.fillText(fitText(x, v, PW-380), 300, y); y += 36; });
   footer(x, `${EVENT.title} · ${EVENT.date}`, "Players Profile Portal");
-  savePdf([c], `UnityGames_Oath_${team.name.replace(/\s+/g,"")}_${p.fullName.replace(/[^\w]+/g,"_")}.pdf`);
+  return toJpg(c);
 }
+function toJpg(c){ const bin = atob(c.toDataURL("image/jpeg", 0.9).split(",")[1]), a = new Uint8Array(bin.length); for(let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return {jpg:a, w:c.width, h:c.height}; }
 function buildPdf(canvases){
   const enc = s => { const a = new Uint8Array(s.length); for(let i=0;i<s.length;i++) a[i] = s.charCodeAt(i) & 255; return a; };
   const parts = [], offsets = []; let len = 0;
@@ -671,11 +683,11 @@ function buildPdf(canvases){
   obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
   obj(2, `<< /Type /Pages /Kids [${kids}] /Count ${n} >>`);
   canvases.forEach((c, i) => {
-    const b64 = c.toDataURL("image/jpeg", 0.9).split(",")[1], bin = atob(b64), jpg = enc(bin);
+    const jpg = c.jpg;
     const P = 3+i*3, C = P+1, I = P+2, content = "q 595.28 0 0 841.89 0 0 cm /Im0 Do Q";
     obj(P, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 ${I} 0 R >> >> /Contents ${C} 0 R >>`);
     obj(C, `<< /Length ${content.length} >>`, content);
-    obj(I, `<< /Type /XObject /Subtype /Image /Width ${c.width} /Height ${c.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`, jpg);
+    obj(I, `<< /Type /XObject /Subtype /Image /Width ${c.w} /Height ${c.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpg.length} >>`, jpg);
   });
   const count = 3 + n*3, xref = len;
   let x = `xref\n0 ${count}\n0000000000 65535 f \n`;
@@ -690,14 +702,17 @@ function savePdf(canvases, filename){
 
 /* ================= events ================= */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-team],[data-view],[data-atab],[data-open],[data-pdf]"); if(!el) return;
+  const el = e.target.closest("[data-team],[data-view],[data-atab],[data-open],[data-pdf],[data-oaths],[data-oath]"); if(!el) return;
   if(el.dataset.team) go(el.dataset.team);
   else if(el.dataset.view){ state.view = el.dataset.view; state.submitted = null; state.form = freshForm(); render(); }
   else if(el.dataset.atab){ state.atab = el.dataset.atab; render(); }
   else if(el.dataset.open) openPlayer(el.dataset.open);
-  else if(el.dataset.pdf){
-    const t = teamOf(state.team), s = sportOf(el.dataset.pdf), label = el.textContent; el.disabled = true; el.textContent = "Preparing…";
-    try{ await galleryPdf(t, s, bySport(state.data[t.id], s.id)); }
+  else if(el.dataset.pdf || el.dataset.oaths || el.dataset.oath){
+    const t = teamOf(state.team), d = state.data[t.id], label = el.textContent; el.disabled = true; el.textContent = "Preparing…";
+    try{
+      if(el.dataset.oath){ const p = d.players.find(x => x.id === el.dataset.oath); if(p) await oathPdf(t, p); }
+      else { const s = sportOf(el.dataset.pdf || el.dataset.oaths), list = bySport(d, s.id); await (el.dataset.pdf ? galleryPdf(t, s, list) : oathsPdf(t, s, list)); }
+    }
     catch(err){ const g = $("#gmsg"); if(g) g.innerHTML = `<div class="msg err">Could not create the PDF: ${esc(err.message)}</div>`; }
     el.disabled = false; el.textContent = label;
   }
