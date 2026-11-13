@@ -909,11 +909,28 @@
     if (Array.isArray(j.entries)) setEntries(j.entries);
     return j;
   }
+  let lastLoadError = "";
+  function diagnose(text) {
+    const t = String(text || "");
+    if (/authori[sz]ation is required/i.test(t)) return "The organiser's Google script needs permission again (Drive). Organiser: open Apps Script, run authorizeDrive, and allow access.";
+    if (/accounts\.google\.com|sign in|ServiceLogin/i.test(t)) return "The organiser's Google script isn't public. Organiser: set the deployment's access to Anyone.";
+    if (/Script function not found/i.test(t)) return "The organiser's Google script is missing the jersey code. Organiser: paste the jersey Code.gs and deploy a new version.";
+    const m = t.match(/<div[^>]*>([^<]{10,200})<\/div>/);
+    return m ? "Google script error: " + m[1].trim() : "";
+  }
   async function load() {
     if (!API_URL) throw { code: "not_configured" };
-    const res = await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now());
-    const j = await res.json();
-    if (!j || !j.ok || !Array.isArray(j.entries)) throw { code: "error" };
+    let res;
+    try { res = await fetch(API_URL + (API_URL.includes("?") ? "&" : "?") + "t=" + Date.now()); }
+    catch { lastLoadError = ""; throw { code: "network" }; }
+    const text = await res.text();
+    let j = null; try { j = JSON.parse(text); } catch {}
+    if (!j || !j.ok || !Array.isArray(j.entries)) {
+      lastLoadError = diagnose(text);
+      console.warn("[G6] order list load failed", res.status, text.slice(0, 500));
+      throw { code: "error" };
+    }
+    lastLoadError = "";
     setEntries(j.entries);
   }
   function setEntries(list) {
@@ -942,8 +959,14 @@
     const doc = buildDoc();
 
     if (!apiOk) {
-      showMsg("err", "The order list can't be reached right now. Please check your connection and reload the page.");
-      return;
+      $("#submitBtn").disabled = true; $("#submitBtn").textContent = "Connecting…";
+      try { await load(); apiOk = true; setStatus(); }
+      catch {}
+      $("#submitBtn").disabled = false; $("#submitBtn").textContent = state.editingId ? "Save changes" : "Submit my jersey";
+      if (!apiOk) {
+        showMsg("err", lastLoadError || "The order list can't be reached right now. Please check your connection and try again in a minute.");
+        return;
+      }
     }
     if (saving) return;
     saving = true; $("#submitBtn").disabled = true; $("#submitBtn").textContent = "Saving…";
@@ -1480,7 +1503,7 @@
     const dot = $("#dot"), t = $("#statusTxt");
     if (kind === "loading") { dot.className = "dot"; t.textContent = "Connecting…"; return; }
     if (!API_URL) { dot.className = "dot off"; t.textContent = "Online saving not set up yet"; return; }
-    if (!apiOk) { dot.className = "dot off"; t.textContent = "Order list not reachable"; return; }
+    if (!apiOk) { dot.className = "dot off"; t.textContent = "Order list not reachable"; t.title = lastLoadError; return; }
     dot.className = "dot live"; t.textContent = "Live order list";
   }
 
