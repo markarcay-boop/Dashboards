@@ -68,6 +68,18 @@
   .titles{flex:1;min-width:260px}
   input[type=password]{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 12px;border-radius:10px;font:500 15px Inter;outline:none}
   input[type=password]:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,77,0,.2)}
+  .rsearch{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 16px}
+  .rs-input{position:relative;flex:1 1 280px;max-width:440px}
+  .rs-input svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;color:var(--muted);pointer-events:none}
+  .rs-input input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:11px 36px 11px 38px;border-radius:11px;font:500 15px Inter;outline:none}
+  .rs-input input:focus{border-color:var(--orange);box-shadow:0 0 0 3px rgba(255,77,0,.2)}
+  .rs-input input::-webkit-search-cancel-button{display:none}
+  .rs-clear{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;padding:4px 8px}
+  .rs-chips{display:flex;gap:6px;flex-wrap:wrap}
+  .rchip{border:1px solid var(--line);background:var(--panel2);color:var(--muted);font:600 12.5px Inter;padding:8px 11px;border-radius:999px;cursor:pointer}
+  .rchip.on{background:var(--orange);border-color:var(--orange);color:#fff}
+  .rs-count{font-size:12.5px;color:var(--muted);margin-left:auto}
+  mark.hl{background:rgba(255,214,10,.35);color:inherit;border-radius:3px;padding:0 1px}
   .proofdrop{display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--panel2);border:1.5px dashed #46526a;border-radius:11px;padding:13px 14px;color:#d7dce6;font-weight:600;font-size:14px}
   .proofdrop:hover{border-color:var(--orange)}
   .proofdrop.has{border-style:solid;border-color:rgba(62,207,142,.6);color:var(--ok)}
@@ -545,9 +557,23 @@
     <div class="rhead">
       <div>
         <h2>Team order list</h2>
-        <p class="sub" style="margin:0" id="rosterSub">Everyone who has submitted so far. Check the numbers already taken.</p>
+        <p class="sub" style="margin:0" id="rosterSub">Everyone who has submitted so far. Search to find an entry, then tap Edit to change it.</p>
       </div>
       <div class="sp"></div>
+    </div>
+    <div class="rsearch">
+      <div class="rs-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="rq" placeholder="Search name, jersey name or number…" autocomplete="off">
+        <button type="button" id="rqClear" class="rs-clear gone" aria-label="Clear search">×</button>
+      </div>
+      <div class="rs-chips" id="rChips">
+        <button type="button" class="rchip on" data-st="">All</button>
+        <button type="button" class="rchip" data-st="basketball">Basketball</button>
+        <button type="button" class="rchip" data-st="volleyball">Volleyball (Women's)</button>
+        <button type="button" class="rchip" data-st="volleyball_men">Volleyball (Men's) / Badminton</button>
+      </div>
+      <div class="rs-count" id="rCount"></div>
     </div>
     <div class="stats" id="stats"></div>
     <div class="players" id="players"><div class="empty">Loading the order list…</div></div>
@@ -1242,6 +1268,16 @@
 
   // ---------- Roster render ----------
   function canManage(e) { return isOwner || !isClosed(); }
+  let rosterStyle = "";
+  $("#rq").addEventListener("input", () => { $("#rqClear").classList.toggle("gone", !$("#rq").value); renderRoster(); });
+  $("#rq").addEventListener("keydown", e => { if (e.key === "Escape") { $("#rq").value = ""; $("#rqClear").classList.add("gone"); renderRoster(); } });
+  $("#rqClear").addEventListener("click", () => { $("#rq").value = ""; $("#rqClear").classList.add("gone"); renderRoster(); $("#rq").focus(); });
+  $("#rChips").addEventListener("click", e => {
+    const c = e.target.closest(".rchip"); if (!c) return;
+    rosterStyle = c.dataset.st;
+    $$("#rChips .rchip").forEach(x => x.classList.toggle("on", x === c));
+    renderRoster();
+  });
 
   // ---------- Deadline countdown ----------
   const DEADLINE = new Date("2026-11-17T23:59:59+04:00").getTime();
@@ -1282,8 +1318,16 @@
       [entries.length, "Entries"], [full, "Full jersey"], [up, "Upper jersey only"], ...(sh ? [[sh, "Shorts only"]] : [])
     ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
 
-    if (!sorted.length) { box.innerHTML = `<div class="empty">No entries yet. Be the first to submit.</div>`; return; }
-    box.innerHTML = sorted.map(e => {
+    if (!sorted.length) { $("#rCount").textContent = ""; box.innerHTML = `<div class="empty">No entries yet. Be the first to submit.</div>`; return; }
+    const rq = $("#rq").value.trim().toLowerCase(), rst = rosterStyle;
+    const qn = rq.replace(/^#/, "");
+    const shown = sorted.filter(e => (!rst || e.kitStyle === rst) && (!qn ||
+      [e.fullName, e.jerseyName].some(v => String(v || "").toLowerCase().includes(qn)) ||
+      (/^\d{1,2}$/.test(qn) && e.jerseyNumber !== "" && (+e.jerseyNumber === +qn || e.jerseyNumber === qn))));
+    $("#rCount").textContent = (rq || rst) ? `Showing ${shown.length} of ${sorted.length}` : `${sorted.length} entr${sorted.length === 1 ? "y" : "ies"}`;
+    if (!shown.length) { box.innerHTML = `<div class="empty">No entries match “${esc($("#rq").value.trim())}”${rst ? " in " + esc(STYLE_LABEL[rst]) : ""}. Not registered yet? Fill in the form above.</div>`; return; }
+    const hl = s => { const v = esc(s); if (!qn || /^\d+$/.test(qn)) return v; const i = String(s).toLowerCase().indexOf(qn); return i < 0 ? v : esc(String(s).slice(0, i)) + '<mark class="hl">' + esc(String(s).slice(i, i + qn.length)) + "</mark>" + esc(String(s).slice(i + qn.length)); };
+    box.innerHTML = shown.map(e => {
       const isMine = !!mine[e.id];
       const tags = [STYLE_LABEL[e.kitStyle] || "", ITEM_LABEL[e.items] || ""];
       const sizeTags = [];
@@ -1296,8 +1340,8 @@
         ${isMine ? '<span class="mineflag">You</span>' : ""}
         <div class="num${e.jerseyNumber === "" ? " none" : ""}">${e.jerseyNumber === "" ? "—" : esc(e.jerseyNumber)}</div>
         <div class="pinfo">
-          <div class="jn">${esc(e.jerseyName || "Shorts only")}</div>
-          <div class="fn">${esc(e.fullName)}</div>
+          <div class="jn">${e.jerseyName ? hl(e.jerseyName) : "Shorts only"}</div>
+          <div class="fn">${hl(e.fullName)}</div>
           <div class="tags">${tags.filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join("")}${sizeTags.map(t => `<span class="tag ${t.startsWith("✓") ? "paid" : "p"}">${esc(t)}</span>`).join("")}</div>
           ${apiOk ? `<div class="pact">
             ${canManage(e) ? `<button class="btn ghost sm" data-edit="${esc(e.id)}" type="button">${isOwner ? "Edit" : "Edit / change size"}</button>` : ""}
