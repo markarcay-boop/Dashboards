@@ -87,6 +87,15 @@ tfoot td{font-weight:800;background:#f3f6fc}
 .chip small{font-size:11px;letter-spacing:.06em;color:var(--muted)}
 .chip[aria-pressed="true"]{border-color:var(--sc);background:color-mix(in srgb,var(--sc) 10%,#fff);box-shadow:0 0 0 3px color-mix(in srgb,var(--sc) 25%,transparent)}
 .chip[aria-pressed="true"] .ico{background:var(--sc)}
+.chip[disabled]{opacity:.55;cursor:not-allowed;background:#f3f6fc;border-style:dashed}
+.chip[disabled] .ico{filter:grayscale(1)}
+.chip .full{display:block;font-size:10.5px;letter-spacing:.08em;color:var(--red);font-weight:800}
+.lockgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.lockrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-left:4px solid var(--sc);border-radius:10px;padding:9px 12px}
+.lockrow input{width:20px;height:20px;accent-color:var(--team);flex:none;margin:0}
+.lockrow .nm{flex:1;font-weight:600;font-size:14.5px}
+.lockrow .ct{font-family:var(--display);font-weight:800;font-size:17px;color:var(--muted);white-space:nowrap}
+.lockpill{display:inline-block;background:#fde8e6;color:#b3180f;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;letter-spacing:.06em;margin-left:6px;vertical-align:middle}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:1.2fr .8fr 1fr;gap:14px}
 label.f{display:block;font-weight:600;font-size:14px}
@@ -290,12 +299,14 @@ function mockSave(s){ try{ localStorage.setItem("ug_demo_v1", JSON.stringify(s))
 async function mockApi(action, p){
   await new Promise(r => setTimeout(r, 250));
   const s = mockStore();
-  const set = s.settings[p.team] || {open:true, roster:{}};
+  const set = Object.assign({open:true, roster:{}, locked:[]}, s.settings[p.team] || {});
   const auth = () => { if(p.password !== "demo") throw new Error("Wrong username or password."); };
   if(action === "overview"){ if(norm(p.username) !== "superadmin" || p.password !== "demo") throw new Error("Wrong username or password."); return {players: s.players}; }
-  if(action === "status") return {open: set.open !== false};
+  if(action === "status") return {open: set.open !== false, locked: set.locked || []};
   if(action === "submit"){
     if(set.open === false) throw new Error("Registration is closed for this team.");
+    const shut = (p.sports || []).filter(id => (set.locked || []).includes(id)).map(id => (sportOf(id)||{}).name || id);
+    if(shut.length) throw new Error(`The line-up for ${shut.join(" and ")} is already full for this team. Choose another sport or contact your team admin.`);
     for(const x of s.players){ const tn = (teamOf(x.team)||{}).name || x.team;
       if(nameKey(x.fullName) === nameKey(p.fullName)) throw new Error(`This name is already registered under Team ${tn}. Each player can register only once — ask your team admin if your entry needs to be changed.`);
       if(phoneKey(p.mobile).length >= 7 && phoneKey(x.mobile) === phoneKey(p.mobile)) throw new Error(`This mobile number is already registered under Team ${tn}. Each player can register only once — ask your team admin if your entry needs to be changed.`); }
@@ -317,7 +328,7 @@ const state = {
   team: TEAMS[0].id, view: "register", atab: "status",
   auth: {},     // teamId -> password (memory only)
   data: {},     // teamId -> {players, settings}
-  open: {},     // teamId -> registration open?
+  status: {},   // teamId -> {open, locked:[sportId]}
   form: null, submitted: null,
   super: false, sAuth: null, sData: null, sFilter: ""
 };
@@ -332,7 +343,7 @@ function go(team, view){
   state.form = freshForm(); state.submitted = null;
   try{ history.replaceState(null,"","#"+team); }catch(e){}
   renderTabs(); render();
-  if(state.open[team] === undefined) api("status",{team}).then(r => { state.open[team] = r.open; if(state.team===team && state.view==="register") render(); }).catch(()=>{});
+  if(!state.status[team]) api("status",{team}).then(r => { state.status[team] = {open:r.open, locked:r.locked || []}; if(state.team===team && state.view==="register") render(); }).catch(()=>{});
 }
 function goSuper(){
   state.super = true; $("#superBtn").setAttribute("aria-pressed", "true");
@@ -359,6 +370,7 @@ function render(){
 /* ================= registration ================= */
 function renderRegister(){
   const t = teamOf(state.team), b = $("#body"), f = state.form;
+  const locked = (state.status[state.team] || {}).locked || [];
   if(state.submitted){
     b.innerHTML = `<div class="done"><div class="tick">✓</div><h2>You're registered!</h2>
       <p><b>${esc(state.submitted.name)}</b> — Team ${esc(t.name)}<br>${state.submitted.sports.map(s=>esc(sportOf(s).name)).join(" · ")}</p>
@@ -367,7 +379,8 @@ function renderRegister(){
     $("#again").onclick = () => go(state.team, "register");
     return;
   }
-  if(state.open[state.team] === false){
+  const st = state.status[state.team] || {open:true, locked:[]};
+  if(st.open === false){
     b.innerHTML = `<div class="msg info">Registration for Team ${esc(t.name)} is currently closed. Please contact your team admin.</div>`;
     return;
   }
@@ -375,8 +388,9 @@ function renderRegister(){
   <form id="reg" novalidate>
     <div class="step">
       <h2><span class="n">1</span>Choose your sport</h2>
-      <p class="hint">Tap every sport you will play for Team ${esc(t.name)}.</p>
-      <div class="chips">${SPORTS.map(s => `<button type="button" class="chip" style="--sc:${s.color}" data-sport="${s.id}" aria-pressed="false"><span class="ico">${s.icon}</span>${esc(s.name)}${s.sub?`<small>${esc(s.sub)}</small>`:""}</button>`).join("")}</div>
+      <p class="hint">Tap every sport you will play for Team ${esc(t.name)}.${locked.length ? ` Sports marked <b>line-up full</b> are closed.` : ""}</p>
+      <div class="chips">${SPORTS.map(s => { const shut = locked.includes(s.id);
+        return `<button type="button" class="chip" style="--sc:${s.color}" data-sport="${s.id}" aria-pressed="false" ${shut?`disabled title="The ${esc(s.name)} line-up is full"`:""}><span class="ico">${s.icon}</span>${esc(s.name)}${shut?`<span class="full">Line-up full</span>`:(s.sub?`<small>${esc(s.sub)}</small>`:"")}</button>`; }).join("")}</div>
     </div>
 
     <div class="step">
@@ -418,11 +432,12 @@ function renderRegister(){
     <button class="btn big" id="submitBtn">Submit my profile</button>
   </form>`;
 
+  const locked2 = locked;
   const paintOath = () => { const [a,b2,c] = OATH($("#fullName").value.trim(), t.name);
     $("#oath").innerHTML = `<h3>OATH OF SPORTSMANSHIP</h3><p>${a}</p><p>${b2}</p><p>${c}</p><p class="c">So help me God.</p>`; };
   paintOath();
   $("#fullName").addEventListener("input", paintOath);
-  $$(".chip").forEach(c => c.onclick = () => { const id = c.dataset.sport; f.sports.has(id) ? f.sports.delete(id) : f.sports.add(id); c.setAttribute("aria-pressed", f.sports.has(id)); });
+  $$(".chip").forEach(c => c.onclick = () => { if(c.disabled) return; const id = c.dataset.sport; f.sports.has(id) ? f.sports.delete(id) : f.sports.add(id); c.setAttribute("aria-pressed", f.sports.has(id)); });
   $("#photoBtn").onclick = () => $("#photoFile").click();
   $("#photoFile").onchange = async e => {
     const file = e.target.files[0]; if(!file) return;
@@ -437,6 +452,7 @@ function renderRegister(){
     const phoneOk = s => /^\+?[\d\s\-()]{7,}$/.test(s);
     const errs = [];
     if(!f.sports.size) errs.push("Choose at least one sport.");
+    [...f.sports].filter(id => locked2.includes(id)).forEach(id => errs.push(`The ${sportOf(id).name} line-up is now full. Please choose another sport.`));
     if(v("fullName").length < 3) errs.push("Enter your full name.");
     if(!phoneOk(v("mobile"))) errs.push("Enter a valid mobile number.");
     if(v("email") && !/^\S+@\S+\.\S+$/.test(v("email"))) errs.push("The email address doesn't look right.");
@@ -496,8 +512,9 @@ async function loadTeam(){
   const team = state.team;
   const r = await api("list", {team, username: teamOf(team).name, password: state.auth[team]});
   r.players.sort((a,b) => a.fullName.localeCompare(b.fullName));
-  r.settings = Object.assign({open:true, roster:{}}, r.settings || {}); r.settings.roster = r.settings.roster || {};
-  state.data[team] = r; state.open[team] = r.settings.open !== false;
+  r.settings = Object.assign({open:true, roster:{}, locked:[]}, r.settings || {});
+  r.settings.roster = r.settings.roster || {}; r.settings.locked = r.settings.locked || [];
+  state.data[team] = r; state.status[team] = {open: r.settings.open !== false, locked: r.settings.locked};
 }
 function renderAdmin(){
   const t = teamOf(state.team), b = $("#body");
@@ -537,8 +554,9 @@ const complete = p => ({photo:!!safeImg(p.photo), contact:!!p.mobile, emg:!!(p.e
 
 function renderStatus(d, t){
   const a = $("#abody"), roster = d.settings.roster;
+  const locked = d.settings.locked || [];
   const tiles = SPORTS.map(s => { const n = bySport(d,s.id).length, exp = (roster[s.id]||[]).length;
-    return `<div class="tile" style="--sc:${s.color}"><div class="k">${s.icon} ${esc(s.name)}</div><div class="v">${n}${exp?` <small>/ ${exp}</small>`:""}</div></div>`; }).join("");
+    return `<div class="tile" style="--sc:${s.color}"><div class="k">${s.icon} ${esc(s.name)}${locked.includes(s.id)?`<span class="lockpill">🔒 Full</span>`:""}</div><div class="v">${n}${exp?` <small>/ ${exp}</small>`:""}</div></div>`; }).join("");
   const rows = d.players.map(p => { const c = complete(p), yn = v => v ? `<span class="yes" title="Complete">✓</span>` : `<span class="no" title="Missing">✗</span>`;
     return `<tr><td><b>${esc(p.fullName)}</b></td><td>${p.sports.map(s => sportOf(s) ? `<span class="pill" style="--sc:${sportOf(s).color}">${esc(sportOf(s).name)}</span>` : "").join("")}</td>
       <td class="c">${yn(c.contact)}</td><td class="c">${yn(c.emg)}</td><td class="c">${yn(c.photo)}</td><td class="c">${yn(c.oath)}</td><td>${esc(fmtDate(p.ts))}</td>
@@ -555,7 +573,7 @@ function renderStatus(d, t){
 }
 function renderGallery(d, t){
   $("#abody").innerHTML = `<div id="gmsg"></div>` + SPORTS.map(s => { const list = bySport(d, s.id);
-    return `<div class="sec-h" style="--sc:${s.color}"><h3>${s.icon} ${esc(s.name)}${s.sub?` <small style="font-size:14px;color:var(--muted)">${esc(s.sub)}</small>`:""} · ${list.length}</h3>
+    return `<div class="sec-h" style="--sc:${s.color}"><h3>${s.icon} ${esc(s.name)}${s.sub?` <small style="font-size:14px;color:var(--muted)">${esc(s.sub)}</small>`:""} · ${list.length}${(d.settings.locked||[]).includes(s.id)?`<span class="lockpill">🔒 Full</span>`:""}</h3>
       <span style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" data-pdf="${s.id}" ${list.length?"":"disabled"}>Gallery PDF</button><button class="btn ghost sm" data-oaths="${s.id}" ${list.length?"":"disabled"}>Signed oaths PDF</button></span></div>
       ${list.length ? `<div class="gal">${list.map(p => `<button class="pcard" data-open="${esc(p.id)}"><img alt="" src="${safeImg(p.photo)}"><div><b>${esc(p.fullName)}</b><span>${esc(p.mobile)}</span></div></button>`).join("")}</div>` : `<p class="empty">No players yet.</p>`}`; }).join("");
 }
@@ -564,6 +582,10 @@ function renderSettings(d, t){
   $("#abody").innerHTML = `
     <div class="setbox"><h3>Registration</h3><p>Close registration when your line-up is final. Players will see a "closed" notice on the Team ${esc(t.name)} tab.</p>
       <label class="check" style="margin:0"><input type="checkbox" id="sOpen" ${s.open!==false?"checked":""}><span>Registration is open for Team ${esc(t.name)}</span></label></div>
+    <div class="setbox"><h3>Lock a sport when its line-up is full</h3><p>Tick a sport to close it. Players can still register for Team ${esc(t.name)}'s other sports, but a locked sport can't be chosen. Players already registered are unaffected.</p>
+      <div class="lockgrid">${SPORTS.map(sp => { const n = d.players.filter(p => p.sports.includes(sp.id)).length, exp = (s.roster[sp.id]||[]).length;
+        return `<label class="lockrow" style="--sc:${sp.color}"><input type="checkbox" data-lock="${sp.id}" ${(s.locked||[]).includes(sp.id)?"checked":""}><span class="nm">${sp.icon} ${esc(sp.name)}</span><span class="ct">${n}${exp?` / ${exp}`:""}</span></label>`; }).join("")}</div>
+      <p class="hint" style="margin:10px 0 0;color:var(--muted);font-size:13.5px">The number shows how many players have registered${SPORTS.some(sp => (s.roster[sp.id]||[]).length)?", against your expected line-up":""}.</p></div>
     <div class="setbox"><h3>Expected line-up</h3><p>One player name per line, per sport. The Player status page marks each name Done or Pending. Names must match what the player types.</p>
       <div class="rgrid">${SPORTS.map(sp => `<label class="f">${sp.icon} ${esc(sp.name)}<textarea data-roster="${sp.id}" maxlength="3000">${esc((s.roster[sp.id]||[]).join("\n"))}</textarea></label>`).join("")}</div></div>
     <div id="smsg"></div><button class="btn" id="sSave">Save settings</button>
@@ -572,8 +594,9 @@ function renderSettings(d, t){
       <div id="pmsg"></div><button class="btn ghost" id="pSave" style="margin-top:12px">Update password</button></div>`;
   $("#sSave").onclick = async () => {
     const roster = {}; $$("[data-roster]").forEach(a => { const l = a.value.split("\n").map(x => x.trim()).filter(Boolean).slice(0,60); if(l.length) roster[a.dataset.roster] = l; });
-    const settings = {open: $("#sOpen").checked, roster}, btn = $("#sSave"); btn.disabled = true;
-    try{ await api("saveSettings",{team:t.id, password:state.auth[t.id], settings}); d.settings = settings; state.open[t.id] = settings.open; $("#smsg").innerHTML = `<div class="msg ok">Settings saved.</div>`; }
+    const locked = $$("[data-lock]").filter(c => c.checked).map(c => c.dataset.lock);
+    const settings = {open: $("#sOpen").checked, roster, locked}, btn = $("#sSave"); btn.disabled = true;
+    try{ await api("saveSettings",{team:t.id, password:state.auth[t.id], settings}); d.settings = settings; state.status[t.id] = {open:settings.open, locked}; $("#smsg").innerHTML = `<div class="msg ok">Settings saved.</div>`; }
     catch(err){ $("#smsg").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }
     btn.disabled = false;
   };
