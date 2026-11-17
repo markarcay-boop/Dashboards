@@ -95,6 +95,16 @@ tfoot td{font-weight:800;background:#f3f6fc}
 .lockrow input{width:20px;height:20px;accent-color:var(--team);flex:none;margin:0}
 .lockrow .nm{flex:1;font-weight:600;font-size:14.5px}
 .lockrow .ct{font-family:var(--display);font-weight:800;font-size:17px;color:var(--muted);white-space:nowrap}
+.srch{display:flex;align-items:center;gap:6px;border:1.5px solid #c9d2e3;border-radius:10px;padding:5px 8px 5px 11px;background:#fff;min-width:230px;flex:1;max-width:420px}
+.srch input{border:0;outline:none;flex:1;min-width:0;font-size:15px;padding:3px 0;background:transparent}
+.srch button{border:0;background:#eef2fa;border-radius:50%;width:24px;height:24px;line-height:1;color:var(--muted);font-size:15px;flex:none}
+.srch .mg{color:var(--muted);font-size:15px}
+.echips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.echip{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-left:4px solid var(--sc);border-radius:9px;padding:8px 10px;font-weight:600;font-size:14px}
+.echip input{width:18px;height:18px;accent-color:var(--sc);flex:none;margin:0}
+.editbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:22px 0 10px;padding-bottom:8px;border-bottom:3px solid var(--sc)}
+.editbar h3{margin:0;font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;letter-spacing:.03em}
+.editbar .right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;flex:1;justify-content:flex-end}
 .lockpill{display:inline-block;background:#fde8e6;color:#b3180f;border-radius:999px;padding:1px 8px;font-size:11px;font-weight:800;letter-spacing:.06em;margin-left:6px;vertical-align:middle}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .grid3{display:grid;grid-template-columns:1.2fr .8fr 1fr;gap:14px}
@@ -301,7 +311,19 @@ async function mockApi(action, p){
   const s = mockStore();
   const set = Object.assign({open:true, roster:{}, locked:[]}, s.settings[p.team] || {});
   const auth = () => { if(p.password !== "demo") throw new Error("Wrong username or password."); };
-  if(action === "overview"){ if(norm(p.username) !== "superadmin" || p.password !== "demo") throw new Error("Wrong username or password."); return {players: s.players}; }
+  const sup = () => { if(norm(p.username) !== "superadmin" || p.password !== "demo") throw new Error("Wrong username or password."); };
+  if(action === "overview"){ sup(); return {players: s.players}; }
+  if(action === "superDelete"){ sup(); s.players = s.players.filter(x => x.id !== p.id); mockSave(s); return {}; }
+  if(action === "updatePlayer"){
+    sup();
+    const me = s.players.find(x => x.id === p.id); if(!me) throw new Error("That entry no longer exists.");
+    for(const x of s.players){ if(x.id === p.id) continue; const tn = (teamOf(x.team)||{}).name || x.team;
+      if(nameKey(x.fullName) === nameKey(p.fullName)) throw new Error(`Another player under Team ${tn} already has this name.`);
+      if(phoneKey(p.mobile).length >= 7 && phoneKey(x.mobile) === phoneKey(p.mobile)) throw new Error(`Another player under Team ${tn} already has this mobile number.`); }
+    Object.assign(me, {team: teamOf(p.newTeam) ? p.newTeam : me.team, sports:p.sports, fullName:p.fullName, mobile:p.mobile, email:p.email,
+      emgName:p.emgName, emgRelation:p.emgRelation, emgPhone:p.emgPhone});
+    mockSave(s); return {};
+  }
   if(action === "status") return {open: set.open !== false, locked: set.locked || []};
   if(action === "submit"){
     if(set.open === false) throw new Error("Registration is closed for this team.");
@@ -330,7 +352,7 @@ const state = {
   data: {},     // teamId -> {players, settings}
   status: {},   // teamId -> {open, locked:[sportId]}
   form: null, submitted: null,
-  super: false, sAuth: null, sData: null, sFilter: ""
+  super: false, sAuth: null, sData: null, sFilter: "", sQuery: ""
 };
 function freshForm(){ return {sports:new Set(), photo:"", hasInk:false}; }
 
@@ -661,7 +683,6 @@ function renderSuper(){
   if(!d){ b.innerHTML = `<div class="msg info">Loading all teams…</div>`; loadSuper().then(render).catch(err => { b.innerHTML = `<div class="msg err">${esc(err.message)}</div>`; }); return; }
   const count = (tid, sid) => d.filter(x => x.team === tid && (!sid || x.sports.includes(sid))).length;
   const max = Math.max(1, ...TEAMS.map(t => count(t.id)));
-  const shown = (state.sFilter ? teamPlayers(d, state.sFilter) : TEAMS.flatMap(t => teamPlayers(d, t.id)));
   b.innerHTML = `
     <div class="shead"><button class="btn ghost sm" id="sRefresh">↻ Refresh</button><button class="btn sm" id="sPdf" ${d.length?"":"disabled"}>Download full report (PDF)</button><button class="btn ghost sm" id="sOut">Sign out</button></div>
     <div id="spmsg"></div>
@@ -674,17 +695,93 @@ function renderSuper(){
       <tbody>${TEAMS.map(t => `<tr><td><b style="color:${t.color}">${esc(t.name)}</b></td>${SPORTS.map(s => `<td class="c">${count(t.id, s.id) || "–"}</td>`).join("")}<td class="c"><b>${count(t.id)}</b></td></tr>`).join("")}</tbody>
       <tfoot><tr><td>Total</td>${SPORTS.map(s => `<td class="c">${d.filter(x => x.sports.includes(s.id)).length}</td>`).join("")}<td class="c">${d.length}</td></tr></tfoot></table></div>
     <p class="empty">A player in two sports is counted in both sport columns, but once in "Players".</p>
-    <div class="sec-h" style="--sc:${ALL.color}"><h3>All players · ${shown.length}</h3>
-      <label style="font-weight:600;font-size:14px">Team <select id="sFilter" style="margin-left:6px;padding:7px 10px;border-radius:9px;border:1.5px solid #c9d2e3"><option value="">All teams</option>${TEAMS.map(t => `<option value="${t.id}" ${state.sFilter===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label></div>
-    ${shown.length ? `<div class="tablewrap"><table><thead><tr><th>Team</th><th>Player</th><th>Sport</th><th>Mobile</th><th>Email</th><th>Emergency contact</th><th class="c">Oath</th><th>Submitted</th></tr></thead><tbody>
-      ${shown.map(x => `<tr><td><b style="color:${teamOf(x.team).color}">${esc(teamOf(x.team).name)}</b></td><td><b>${esc(x.fullName)}</b></td><td>${esc(sportNames(x))}</td><td style="white-space:nowrap">${esc(x.mobile)}</td><td>${esc(x.email || "—")}</td><td>${esc(x.emgName)} (${esc(x.emgRelation)})<br>${esc(x.emgPhone)}</td><td class="c">${safeImg(x.signature) ? `<span class="yes">✓</span>` : `<span class="no">✗</span>`}</td><td>${esc(fmtDate(x.ts))}</td></tr>`).join("")}</tbody></table></div>` : `<p class="empty">No players registered yet.</p>`}`;
+    <div class="editbar" style="--sc:${ALL.color}"><h3>All players · <span id="sCount">0</span></h3>
+      <div class="right">
+        <div class="srch"><span class="mg" aria-hidden="true">🔍</span><input id="sQuery" type="search" placeholder="Search name, mobile, sport…" value="${esc(state.sQuery)}" aria-label="Search players"><button type="button" id="sClear" title="Clear search" ${state.sQuery?"":"hidden"}>×</button></div>
+        <label style="font-weight:600;font-size:14px">Team <select id="sFilter" style="margin-left:6px;padding:7px 10px;border-radius:9px;border:1.5px solid #c9d2e3"><option value="">All teams</option>${TEAMS.map(t => `<option value="${t.id}" ${state.sFilter===t.id?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
+      </div></div>
+    <p class="empty" style="margin:0 0 10px">Click <b>Edit</b> to correct a player's details or move them to another team.</p>
+    <div id="sTable"></div>`;
+  renderSuperTable();
+  const q = $("#sQuery");
+  q.oninput = () => { state.sQuery = q.value; $("#sClear").hidden = !q.value; renderSuperTable(); };
+  $("#sClear").onclick = () => { state.sQuery = ""; q.value = ""; $("#sClear").hidden = true; renderSuperTable(); q.focus(); };
   $("#sRefresh").onclick = () => { state.sData = null; render(); };
   $("#sOut").onclick = () => { state.sAuth = null; state.sData = null; render(); };
-  $("#sFilter").onchange = e => { state.sFilter = e.target.value; render(); };
+  $("#sFilter").onchange = e => { state.sFilter = e.target.value; renderSuperTable(); };
   $("#sPdf").onclick = async e => { const btn = e.target; btn.disabled = true; btn.textContent = "Preparing…";
     try{ await superPdf(d); }catch(err){ $("#spmsg").innerHTML = `<div class="msg err">Could not create the PDF: ${esc(err.message)}</div>`; }
     btn.disabled = false; btn.textContent = "Download full report (PDF)"; };
 }
+function superMatch(p, query){
+  if(!query) return true;
+  const hay = [p.fullName, p.mobile, p.email, p.emgName, p.emgRelation, p.emgPhone, sportNames(p), (teamOf(p.team)||{}).name].join(" ").toLowerCase();
+  return query.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+function renderSuperTable(){
+  const d = state.sData || [], box = $("#sTable"); if(!box) return;
+  const base = state.sFilter ? teamPlayers(d, state.sFilter) : TEAMS.flatMap(t => teamPlayers(d, t.id));
+  const shown = base.filter(p => superMatch(p, state.sQuery));
+  $("#sCount").textContent = shown.length + (shown.length !== d.length ? ` of ${d.length}` : "");
+  box.innerHTML = shown.length ? `<div class="tablewrap"><table><thead><tr><th>Team</th><th>Player</th><th>Sport</th><th>Mobile</th><th>Email</th><th>Emergency contact</th><th class="c">Oath</th><th>Submitted</th><th></th></tr></thead><tbody>
+      ${shown.map(x => `<tr><td><b style="color:${teamOf(x.team).color}">${esc(teamOf(x.team).name)}</b></td><td><b>${esc(x.fullName)}</b></td><td>${esc(sportNames(x))}</td><td style="white-space:nowrap">${esc(x.mobile)}</td><td>${esc(x.email || "—")}</td><td>${esc(x.emgName)} (${esc(x.emgRelation)})<br>${esc(x.emgPhone)}</td><td class="c">${safeImg(x.signature) ? `<span class="yes">✓</span>` : `<span class="no">✗</span>`}</td><td>${esc(fmtDate(x.ts))}</td><td><button class="btn ghost sm" data-edit="${esc(x.id)}">Edit</button></td></tr>`).join("")}</tbody></table></div>`
+    : `<p class="empty">${d.length ? "No player matches this search." : "No players registered yet."}</p>`;
+}
+function editPlayer(id){
+  const p = (state.sData || []).find(x => x.id === id); if(!p) return;
+  const root = $("#modalRoot");
+  root.innerHTML = `<div class="modal" role="dialog" aria-modal="true" aria-label="Edit player"><div class="sheet">
+    <div class="top"><img alt="" src="${safeImg(p.photo)}"><div style="flex:1;min-width:0">
+      <h3>Edit player</h3>
+      <label class="f">Full name <span class="req">*</span><input id="eName" maxlength="80" value="${esc(p.fullName)}"></label>
+      <label class="f" style="margin-top:10px">Team <span class="req">*</span><select id="eTeam">${TEAMS.map(t => `<option value="${t.id}" ${t.id===p.team?"selected":""}>${esc(t.name)}</option>`).join("")}</select></label>
+      <div id="eTeamNote"></div></div></div>
+    <div class="subhead">Sports <span style="color:var(--red)">*</span></div>
+    <div class="echips">${SPORTS.map(s => `<label class="echip" style="--sc:${s.color}"><input type="checkbox" data-esport="${s.id}" ${p.sports.includes(s.id)?"checked":""}><span>${s.icon} ${esc(s.name)}</span></label>`).join("")}</div>
+    <div class="subhead">Contact information</div>
+    <div class="grid2"><label class="f">Mobile <span class="req">*</span><input id="eMobile" type="tel" maxlength="24" value="${esc(p.mobile)}"></label>
+      <label class="f">Email<input id="eEmail" type="email" maxlength="80" value="${esc(p.email || "")}"></label></div>
+    <div class="subhead">Emergency contact</div>
+    <div class="grid3"><label class="f">Contact person <span class="req">*</span><input id="eEmgName" maxlength="80" value="${esc(p.emgName)}"></label>
+      <label class="f">Relationship <span class="req">*</span><input id="eEmgRel" maxlength="40" value="${esc(p.emgRelation)}"></label>
+      <label class="f">Contact number <span class="req">*</span><input id="eEmgPhone" type="tel" maxlength="24" value="${esc(p.emgPhone)}"></label></div>
+    <div class="subhead">Signed oath — ${esc(fmtDate(p.signedAt || p.ts))}</div>
+    ${safeImg(p.signature) ? `<img class="sig" alt="Player signature" src="${safeImg(p.signature)}">` : `<p class="empty">No signature on file.</p>`}
+    <p class="empty" style="margin:6px 0 0">The photo and signature can't be edited here. If either is wrong, remove the player so they can register again.</p>
+    <div id="emsg"></div>
+    <div class="acts"><button class="btn sm" id="eSave">Save changes</button><button class="btn danger sm" id="eDel">Remove player</button><span style="flex:1"></span><button class="btn ghost sm" id="eClose">Cancel</button></div>
+  </div></div>`;
+  const close = () => root.innerHTML = "";
+  $("#eClose").onclick = close; $(".modal").onclick = e => { if(e.target.classList.contains("modal")) close(); };
+  $("#eTeam").onchange = e => { $("#eTeamNote").innerHTML = e.target.value !== p.team
+    ? `<div class="msg info" style="margin:10px 0 0">The oath names the player's congregation, so their signed oath will show Team ${esc(teamOf(e.target.value).name)} once saved.</div>` : ""; };
+  $("#eSave").onclick = async () => {
+    const v = id2 => $("#"+id2).value.trim(), m = $("#emsg");
+    const sports = $$("[data-esport]").filter(c => c.checked).map(c => c.dataset.esport);
+    const phoneOk = x => /^\+?[\d\s\-()]{7,}$/.test(x), errs = [];
+    if(!sports.length) errs.push("Choose at least one sport.");
+    if(v("eName").length < 3) errs.push("Enter the player's full name.");
+    if(!phoneOk(v("eMobile"))) errs.push("Enter a valid mobile number.");
+    if(v("eEmail") && !/^\S+@\S+\.\S+$/.test(v("eEmail"))) errs.push("The email address doesn't look right.");
+    if(!v("eEmgName") || !v("eEmgRel") || !phoneOk(v("eEmgPhone"))) errs.push("Complete the emergency contact.");
+    if(errs.length){ m.innerHTML = `<div class="msg err" role="alert">${errs.map(esc).join("<br>")}</div>`; return; }
+    const btn = $("#eSave"); btn.disabled = true; btn.textContent = "Saving…";
+    try{
+      await api("updatePlayer", Object.assign({}, state.sAuth, {team:p.team, newTeam:$("#eTeam").value, id:p.id, sports,
+        fullName:v("eName"), mobile:v("eMobile"), email:v("eEmail"), emgName:v("eEmgName"), emgRelation:v("eEmgRel"), emgPhone:v("eEmgPhone")}));
+      close(); state.sData = null; Object.keys(state.data).forEach(k => delete state.data[k]); render();
+    }catch(err){ m.innerHTML = `<div class="msg err" role="alert">${esc(err.message)}</div>`; btn.disabled = false; btn.textContent = "Save changes"; }
+  };
+  $("#eDel").onclick = async e => {
+    const btn = e.target;
+    if(!btn.dataset.sure){ btn.dataset.sure = 1; btn.textContent = "Tap again to permanently remove"; return; }
+    btn.disabled = true;
+    try{ await api("superDelete", Object.assign({}, state.sAuth, {team:p.team, id:p.id}));
+      close(); state.sData = null; Object.keys(state.data).forEach(k => delete state.data[k]); render(); }
+    catch(err){ $("#emsg").innerHTML = `<div class="msg err">${esc(err.message)}</div>`; btn.disabled = false; }
+  };
+}
+
 async function superPdf(d){
   const pages = [], stamp = "Generated " + new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
   const sub = `${d.length} player${d.length===1?"":"s"} · Dec 2, 2026 · ${EVENT.time} · Venue: ${EVENT.venue}`;
@@ -842,11 +939,12 @@ function savePdf(canvases, filename){
 
 /* ================= events ================= */
 document.addEventListener("click", async e => {
-  const el = e.target.closest("[data-team],[data-view],[data-atab],[data-open],[data-pdf],[data-oaths],[data-oath]"); if(!el) return;
+  const el = e.target.closest("[data-team],[data-view],[data-atab],[data-open],[data-pdf],[data-oaths],[data-oath],[data-edit]"); if(!el) return;
   if(el.dataset.team) go(el.dataset.team);
   else if(el.dataset.view){ state.view = el.dataset.view; state.submitted = null; state.form = freshForm(); render(); }
   else if(el.dataset.atab){ state.atab = el.dataset.atab; render(); }
   else if(el.dataset.open) openPlayer(el.dataset.open);
+  else if(el.dataset.edit) editPlayer(el.dataset.edit);
   else if(el.dataset.pdf || el.dataset.oaths || el.dataset.oath){
     const t = teamOf(state.team), d = state.data[t.id], label = el.textContent; el.disabled = true; el.textContent = "Preparing…";
     try{
