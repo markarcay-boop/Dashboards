@@ -82,6 +82,17 @@
   .login input{width:100%;margin-bottom:12px}
   .err{color:#ff9a9a;font-size:13px;min-height:18px;margin-bottom:8px}
   .gone{display:none !important}
+  .entcard{width:100%;max-width:620px;max-height:92vh;overflow:auto}
+  .entcard h2{margin:0;font-family:Oswald;letter-spacing:1px;text-transform:uppercase}
+  .egrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+  .ef{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:600;color:#cfd5df}
+  .ef.full{grid-column:1/-1}
+  .ef input,.ef select{width:100%}
+  @media (max-width:560px){.egrid{grid-template-columns:1fr}}
+  .ewarn{color:#ffd59a;font-size:13px;margin-top:10px;min-height:0}
+  .eprice{margin-top:8px;font-size:14px;color:var(--muted)} .eprice b{color:var(--peach);font-family:Oswald;font-size:18px;margin-left:4px}
+  .editbtn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:15px;cursor:pointer}
+  .editbtn:hover{border-color:var(--orange);color:#fff}
   .dlbox{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;padding:14px 16px;margin-bottom:16px;border-radius:12px;
     border:1px solid rgba(255,214,10,.35);background:linear-gradient(90deg, rgba(255,214,10,.08), transparent), var(--panel2)}
   .dlinfo{display:flex;flex-direction:column;gap:2px;flex:1 1 260px}
@@ -177,12 +188,40 @@
       </select>
       <div class="sp"></div>
       <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Loading…</span></div>
+      <button class="btn primary" id="addBtn" type="button">+ Add entry</button>
       <button class="btn primary" id="pdfBtn" type="button">Save as PDF</button>
       <button class="btn ghost" id="logoutBtn" type="button">Lock</button>
     </div>
     <div class="tscroll"><table id="tbl"></table></div>
     <p class="muted" style="font-size:12.5px;margin:10px 2px 0">Click a column header to sort. The PDF follows the current search, filters and sort.</p>
   </section>
+</div>
+<div class="modalbg gone" id="entModal">
+  <div class="card entcard">
+    <h2 id="entTitle">Add entry</h2>
+    <p class="muted" id="entSub" style="margin:2px 0 14px;font-size:13.5px">Added by the organiser. Works even after the deadline.</p>
+    <div class="egrid">
+      <label class="ef full">Full name *<input id="eName" maxlength="60" autocomplete="off"></label>
+      <label class="ef">Sex *<select id="eSex"><option value="">Choose…</option><option>Male</option><option>Female</option></select></label>
+      <label class="ef">Kit style *<select id="eStyle"><option value="">Choose…</option><option value="basketball">Basketball</option><option value="volleyball">Volleyball (Women's)</option><option value="volleyball_men">Volleyball (Men's) / Badminton</option></select></label>
+      <label class="ef">Order *<select id="eItems"><option value="">Choose…</option><option value="full">Full jersey</option><option value="upper">Upper jersey only</option></select></label>
+      <label class="ef">Sleeves *<select id="eSleeves"><option value="">Choose…</option><option value="with">With sleeves</option><option value="without">Sleeveless</option></select></label>
+      <label class="ef">Name on jersey *<input id="eJName" maxlength="14" autocomplete="off" style="text-transform:uppercase"></label>
+      <label class="ef">Number *<input id="eNum" maxlength="2" inputmode="numeric" autocomplete="off" placeholder="0–99"></label>
+      <label class="ef">Jersey size *<select id="eUSize"></select></label>
+      <label class="ef shortsf">Shorts size *<select id="eSSize"></select></label>
+      <label class="ef shortsf">Pockets *<select id="ePockets"><option value="">Choose…</option><option value="with">With pockets</option><option value="without">Without pockets</option></select></label>
+      <label class="ef full">Notes<input id="eNotes" maxlength="200" autocomplete="off"></label>
+      <label class="ef full"><span id="ePinLbl">PIN for the member (optional)</span><input id="ePin" maxlength="6" inputmode="numeric" autocomplete="off" placeholder="4–6 digits, so they can edit it themselves"></label>
+    </div>
+    <div class="ewarn" id="eWarn"></div>
+    <div class="eprice" id="ePrice"></div>
+    <div class="err" id="eErr"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn primary" id="eSave" type="button">Add entry</button>
+      <button class="btn ghost" id="eCancel" type="button">Cancel</button>
+    </div>
+  </div>
 </div>
 <div class="modalbg gone" id="payModal">
   <div class="card paycard">
@@ -243,6 +282,7 @@
   // Column definitions: key, header, value for display/sort/pdf
   const COLS = [
     { k: "idx", h: "#", v: (e, i) => i + 1, cls: "c", nosort: true },
+    { k: "edit", h: "", v: () => "", nosort: true, cls: "c", html: e => `<button type="button" class="editbtn" data-edit="${esc(e.id)}" title="Edit this entry">✎</button>` },
     { k: "fullName", h: "Full name", v: e => e.fullName },
     { k: "sex", h: "Sex", v: e => e.sex },
     { k: "kitStyle", h: "Kit style", v: e => STYLE[e.kitStyle] || e.kitStyle },
@@ -378,6 +418,81 @@
       msg.textContent = String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) first." : "Couldn't save. Try again.";
       msg.className = "dlmsg err";
     } finally { btn.disabled = false; btn.textContent = "Save deadline"; }
+  });
+
+  // ---------- Add / edit entry (organiser) ----------
+  let editId = null, eSleeveTouched = false;
+  const sizeOpts = '<option value="">Choose…</option>' + SIZES.map(z => `<option>${z}</option>`).join("");
+  $("#eUSize").innerHTML = sizeOpts; $("#eSSize").innerHTML = sizeOpts;
+  function entSync() {
+    const full = $("#eItems").value === "full";
+    document.querySelectorAll("#entModal .shortsf").forEach(x => x.classList.toggle("gone", !full));
+    const n = $("#eNum").value.trim();
+    const taken = n !== "" ? entries.filter(x => x.id !== editId && x.jerseyNumber !== "" && +x.jerseyNumber === +n && x.kitStyle === $("#eStyle").value) : [];
+    $("#eWarn").textContent = taken.length ? `Number ${n} is already used in this kit by ${taken.map(t => t.jerseyName || t.fullName).join(", ")}.` : "";
+    const fake = { items: $("#eItems").value, pockets: $("#ePockets").value };
+    $("#ePrice").innerHTML = fake.items ? `Cost: <b>${aed(price(fake))}</b>` : "";
+  }
+  ["#eItems", "#eNum", "#ePockets"].forEach(id => $(id).addEventListener("input", entSync));
+  $("#eStyle").addEventListener("input", () => { if (!eSleeveTouched && $("#eStyle").value) $("#eSleeves").value = $("#eStyle").value === "basketball" ? "without" : "with"; entSync(); });
+  $("#eSex").addEventListener("input", () => { if (!$("#eStyle").value) { $("#eStyle").value = $("#eSex").value === "Female" ? "volleyball" : "basketball"; $("#eStyle").dispatchEvent(new Event("input")); } });
+  $("#eSleeves").addEventListener("input", () => { eSleeveTouched = true; });
+  $("#eNum").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 2); });
+  $("#ePin").addEventListener("input", e => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6); });
+  function openEntry(id) {
+    const d = id ? entries.find(x => x.id === id) : null;
+    editId = d ? d.id : null; eSleeveTouched = !!d;
+    $("#entTitle").textContent = d ? "Edit entry" : "Add entry";
+    $("#entSub").textContent = d ? `${d.fullName} · changes are saved straight away, even after the deadline.` : "Added by the organiser. Works even after the deadline.";
+    $("#eSave").textContent = d ? "Save changes" : "Add entry";
+    $("#ePinLbl").textContent = d ? "Set a new PIN for the member (optional, e.g. if they forgot it)" : "PIN for the member (optional)";
+    const v = (k, x) => d ? (d[k] || "") : x;
+    $("#eName").value = v("fullName", ""); $("#eSex").value = v("sex", ""); $("#eStyle").value = v("kitStyle", "");
+    $("#eItems").value = d ? (d.items === "shorts" ? "full" : d.items) : ""; $("#eSleeves").value = v("sleeves", "");
+    $("#eJName").value = v("jerseyName", ""); $("#eNum").value = v("jerseyNumber", ""); $("#eUSize").value = v("upperSize", "");
+    $("#eSSize").value = v("shortsSize", ""); $("#ePockets").value = v("pockets", ""); $("#eNotes").value = v("notes", ""); $("#ePin").value = "";
+    $("#eErr").textContent = "";
+    entSync();
+    $("#entModal").classList.remove("gone");
+    setTimeout(() => $("#eName").focus(), 50);
+  }
+  $("#addBtn").addEventListener("click", () => openEntry(null));
+  $("#entModal").addEventListener("input", () => { $("#eErr").textContent = ""; });
+  $("#eCancel").addEventListener("click", () => $("#entModal").classList.add("gone"));
+  $("#entModal").addEventListener("click", e => { if (e.target.id === "entModal") $("#entModal").classList.add("gone"); });
+  $("#tbl").addEventListener("click", e => { const b = e.target.closest("[data-edit]"); if (b) openEntry(b.dataset.edit); });
+  $("#eSave").addEventListener("click", async () => {
+    const full = $("#eItems").value === "full";
+    const entry = {
+      fullName: $("#eName").value.trim(), sex: $("#eSex").value, kitStyle: $("#eStyle").value, items: $("#eItems").value,
+      sleeves: $("#eSleeves").value, jerseyName: $("#eJName").value.trim().toUpperCase(), jerseyNumber: $("#eNum").value.trim(),
+      upperSize: $("#eUSize").value, shortsSize: full ? $("#eSSize").value : "", pockets: full ? $("#ePockets").value : "",
+      notes: $("#eNotes").value.trim()
+    };
+    const missing = [
+      [!entry.fullName, "full name"], [!entry.sex, "sex"], [!entry.kitStyle, "kit style"], [!entry.items, "order"],
+      [!entry.sleeves, "sleeves"], [!entry.jerseyName, "name on jersey"], [!/^\d{1,2}$/.test(entry.jerseyNumber), "number (0–99)"],
+      [!entry.upperSize, "jersey size"], [full && !entry.shortsSize, "shorts size"], [full && !entry.pockets, "pockets"]
+    ].filter(x => x[0]).map(x => x[1]);
+    if (missing.length) { $("#eErr").textContent = "Please fill in: " + missing.join(", ") + "."; return; }
+    const pin = $("#ePin").value;
+    if (pin && !/^\d{4,6}$/.test(pin)) { $("#eErr").textContent = "PIN must be 4 to 6 digits, or leave it empty."; return; }
+    const btn = $("#eSave"), label = btn.textContent; btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const body = editId ? { action: "update", id: editId, entry, newPin: pin, password: SETTINGS_PASSWORD }
+                          : { action: "create", entry, pin, password: SETTINGS_PASSWORD };
+      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify(body) });
+      const j = await r.json();
+      if (!j || !j.ok) throw new Error(j && j.error);
+      if (Array.isArray(j.entries)) entries = j.entries.filter(x => x && x.id);
+      $("#entModal").classList.add("gone"); render(); loadProofs();
+      toast(editId ? "Entry updated" : `Added ${entry.fullName}`);
+    } catch (err) {
+      const c = String(err && err.message);
+      $("#eErr").textContent = c === "closed" || c === "bad_pin" ? "The Apps Script needs updating (Code.gs) before you can add or edit after the deadline."
+        : c === "invalid" ? "Some details weren't accepted. Check the fields and try again."
+        : c === "not_found" ? "That entry no longer exists." : "Couldn't save. Try again.";
+    } finally { btn.disabled = false; btn.textContent = label; }
   });
 
   // ---------- Payment window ----------

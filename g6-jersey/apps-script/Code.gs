@@ -170,6 +170,9 @@ function doPost(e) {
   try { req = JSON.parse(e.postData.contents); } catch (err) { return out_({ ok: false, error: 'invalid' }); }
   const action = req.action;
   const admin = isAdmin_(req.adminKey);
+  // The organiser can also act from the Settings page with the settings password:
+  // add or edit entries after the deadline, without needing the member's PIN.
+  const organiser = admin || isSettings_(req.password);
 
   if (action === 'admin') return out_(admin ? { ok: true } : { ok: false, error: 'not_admin' });
 
@@ -236,11 +239,11 @@ function doPost(e) {
     const closed = new Date() > deadline_();
 
     if (action === 'create') {
-      if (closed && !admin) return out_({ ok: false, error: 'closed' });
+      if (closed && !organiser) return out_({ ok: false, error: 'closed' });
       const c = clean_(req.entry);
       if (!c) return out_({ ok: false, error: 'invalid' });
       const pin = String(req.pin || '');
-      if (!admin && !/^\d{4,6}$/.test(pin)) return out_({ ok: false, error: 'invalid' });
+      if (!organiser && !/^\d{4,6}$/.test(pin)) return out_({ ok: false, error: 'invalid' });
       if (pin && !/^\d{4,6}$/.test(pin)) return out_({ ok: false, error: 'invalid' });
       const id = Utilities.getUuid();
       const row = Object.assign({ id: id, createdAt: now, updatedAt: now, pinHash: pin ? hash_(pin) : '' }, c);
@@ -251,13 +254,15 @@ function doPost(e) {
     if (action === 'update') {
       const r = rows_().find(x => x.id === req.id);
       if (!r) return out_({ ok: false, error: 'not_found' });
-      if (!admin) {
+      if (!organiser) {
         if (closed) return out_({ ok: false, error: 'closed' });
         if (!r.pinHash || r.pinHash !== hash_(String(req.pin || ''))) return out_({ ok: false, error: 'bad_pin' });
       }
       const c = clean_(req.entry);
       if (!c) return out_({ ok: false, error: 'invalid' });
       const row = Object.assign({}, r, c, { updatedAt: now });
+      // Organiser may set or reset the member's PIN (e.g. when they forgot it).
+      if (organiser && /^\d{4,6}$/.test(String(req.newPin || ''))) row.pinHash = hash_(String(req.newPin));
       writeRow_(sh, r._row, row);
       return out_({ ok: true, entries: list_() });
     }
