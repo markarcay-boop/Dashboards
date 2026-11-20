@@ -189,7 +189,8 @@
       <div class="sp"></div>
       <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Loading…</span></div>
       <button class="btn primary" id="addBtn" type="button">+ Add entry</button>
-      <button class="btn primary" id="pdfBtn" type="button">Save as PDF</button>
+      <button class="btn primary" id="pdfBtn" type="button" title="Full report with cost, payment and proof details">Save as PDF</button>
+      <button class="btn ghost" id="pdfTailorBtn" type="button" title="Production list without cost or payment details">PDF for tailor</button>
       <button class="btn ghost" id="logoutBtn" type="button">Lock</button>
     </div>
     <div class="tscroll"><table id="tbl"></table></div>
@@ -541,7 +542,7 @@
   ["#q", "#fStyle", "#fItems", "#fSex", "#fPaid"].forEach(s => $(s).addEventListener("input", render));
 
   // ---------- PDF ----------
-  function buildPdf() {
+  function buildPdf(tailor) {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
     const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
@@ -554,9 +555,9 @@
     const header = () => {
       doc.setFillColor(20, 26, 37); doc.rect(0, 0, W, 22, "F");
       try { doc.addImage(LOGO, "JPEG", 10, 3.7, 16, 14.5); } catch {}
-      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text("G6 JERSEY ENTRIES", 30, 11);
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.text(tailor ? "G6 JERSEY ORDER · PRODUCTION LIST" : "G6 JERSEY ENTRIES", 30, 11);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(200);
-      doc.text(`${list.length} entr${list.length === 1 ? "y" : "ies"} · To be collected ${aed(list.reduce((a, e) => a + price(e), 0))}${filters.length ? " · Filter: " + filters.join(", ") : ""}`, 30, 16.5);
+      doc.text(`${list.length} entr${list.length === 1 ? "y" : "ies"}${tailor ? "" : " · To be collected " + aed(list.reduce((a, e) => a + price(e), 0))}${filters.length ? " · Filter: " + filters.join(", ") : ""}`, 30, 16.5);
       doc.text(today, W - 10, 13, { align: "right" });
     };
     const total = sum(list);
@@ -595,16 +596,18 @@
       doc.text(`${ITEMS[g.it] || g.it}  ·  ${g.rows.length}`, 9, y);
       doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(110);
       const parts = PRICE_KEYS.map(k => [k, g.rows.filter(e => pkey(e) === k).length]).filter(([, n]) => n);
-      if (parts.length) doc.text(parts.map(([k, n]) => `${n} × ${aed(PRICE[k])}`).join(" + ") + ` = ${aed(sum(g.rows))}`, W - 9, y, { align: "right" });
+      if (parts.length && !tailor) doc.text(parts.map(([k, n]) => `${n} × ${aed(PRICE[k])}`).join(" + ") + ` = ${aed(sum(g.rows))}`, W - 9, y, { align: "right" });
       y += 2.5;
 
       const hasU = g.it !== "shorts", hasS = g.it !== "upper";
       const cols = [
         { h: "#", v: (e, i) => i + 1, st: { cellWidth: 8, halign: "center" } },
-        { h: "Full name", v: e => e.fullName, st: { cellWidth: 40 } },
+        { h: "Full name", v: e => e.fullName, st: { cellWidth: tailor ? 52 : 40 } },
         { h: "Sex", v: e => e.sex, st: { cellWidth: 15 } },
+        ...(tailor ? [] : [
         { h: "Paid", v: e => e.paid ? (method(e) === "cash" ? "Cash" : method(e) === "transfer" ? "Transfer" : "Paid") : "", st: { cellWidth: 17, halign: "center", fontStyle: "bold", textColor: [20, 140, 80] } },
-        { h: "Payment note", v: e => e.payComment || "", st: { cellWidth: 30 } },
+        { h: "Payment note", v: e => e.payComment || "", st: { cellWidth: 30 } }
+        ]),
         ...(hasU ? [
           { h: "Sleeves", v: e => SLEEVE[e.sleeves] || "-", st: { cellWidth: 24 } },
           { h: "Name on jersey", v: e => e.jerseyName || "-", st: { cellWidth: 34, fontStyle: "bold" } },
@@ -631,46 +634,86 @@
 
     // Summary per category
     ensure(70);
-    doc.setFillColor(...DARK); doc.rect(8, y, W - 16, 9, "F");
-    doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-    doc.text("SUMMARY", 11, y + 6.2);
-    y += 12;
-    doc.autoTable({
-      startY: y, theme: "grid", tableWidth: 170, margin: { left: 8, right: 8, top: 28, bottom: 14 },
-      head: [["Category", "Order", "Qty", "Unit price", "Amount"]],
-      body: STYLE_ORDER.flatMap(st => PRICE_KEYS.map(k => {
-        const n = list.filter(e => e.kitStyle === st && pkey(e) === k).length;
-        return n ? [STYLE[st], PRICE_LABEL[k], n, aed(PRICE[k]), aed(n * PRICE[k])] : null;
-      }).filter(Boolean)),
-      foot: [["Total to be collected", "", list.filter(e => price(e)).length, "", aed(total)],
-             ["Collected (paid)", "", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
-             ["   Paid by cash", "", list.filter(e => method(e) === "cash").length, "", aed(sum(list.filter(e => method(e) === "cash")))],
-             ["   Paid by bank transfer", "", list.filter(e => method(e) === "transfer").length, "", aed(sum(list.filter(e => method(e) === "transfer")))],
-             ["Outstanding (unpaid)", "", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
-      styles: { ...base, fontSize: 9.5, cellPadding: 2.2 },
-      headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },
-      footStyles: { fillColor: PEACH, textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10.5 },
-      columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 50 }, 2: { halign: "center" }, 3: { halign: "right" }, 4: { halign: "right" } },
-      didDrawPage: header
-    });
+    if (tailor) {
+      // Quantities per size for production: jerseys by kit + sleeves, shorts by kit + pockets
+      ensure(70);
+      doc.setFillColor(...DARK); doc.rect(8, y, W - 16, 9, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text("QUANTITIES BY SIZE", 11, y + 6.2);
+      y += 12;
+      const rowsQ = [], colTot = SIZES.map(() => 0); let grand = 0;
+      STYLE_ORDER.forEach(st => {
+        ["with", "without"].forEach(sl => {
+          const m = list.filter(e => e.kitStyle === st && e.upperSize && e.sleeves === sl);
+          if (!m.length) return;
+          const c = SIZES.map(z => m.filter(e => e.upperSize === z).length);
+          c.forEach((n, i) => colTot[i] += n); grand += m.length;
+          rowsQ.push([`Jersey · ${STYLE[st]} · ${SLEEVE[sl]}`, ...c.map(n => n || ""), m.length]);
+        });
+        ["with", "without"].forEach(pk => {
+          const m = list.filter(e => e.kitStyle === st && e.shortsSize && e.pockets === pk);
+          if (!m.length) return;
+          const c = SIZES.map(z => m.filter(e => e.shortsSize === z).length);
+          c.forEach((n, i) => colTot[i] += n); grand += m.length;
+          rowsQ.push([`Shorts · ${STYLE[st]} · ${POCKET[pk]}`, ...c.map(n => n || ""), m.length]);
+        });
+      });
+      doc.autoTable({
+        startY: y, theme: "grid", margin: { left: 8, right: 8, top: 28, bottom: 14 },
+        head: [["Item", ...SIZES, "Total"]],
+        body: rowsQ.length ? rowsQ : [["No pieces", ...SIZES.map(() => ""), ""]],
+        foot: [["Total pieces", ...colTot.map(n => n || ""), grand]],
+        styles: { ...base, fontSize: 9.5, cellPadding: 2.2 },
+        headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold", halign: "center" },
+        footStyles: { fillColor: PEACH, textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10.5, halign: "center" },
+        columnStyles: Object.fromEntries([[0, { cellWidth: 100, halign: "left" }], ...SIZES.map((_, i) => [i + 1, { halign: "center" }]), [SIZES.length + 1, { halign: "center", fontStyle: "bold" }]]),
+        didParseCell: d => { if ((d.section === "head" || d.section === "foot") && d.column.index === 0) d.cell.styles.halign = "left"; },
+        didDrawPage: header
+      });
+    } else {
+      doc.setFillColor(...DARK); doc.rect(8, y, W - 16, 9, "F");
+      doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+      doc.text("SUMMARY", 11, y + 6.2);
+      y += 12;
+      doc.autoTable({
+        startY: y, theme: "grid", tableWidth: 170, margin: { left: 8, right: 8, top: 28, bottom: 14 },
+        head: [["Category", "Order", "Qty", "Unit price", "Amount"]],
+        body: STYLE_ORDER.flatMap(st => PRICE_KEYS.map(k => {
+          const n = list.filter(e => e.kitStyle === st && pkey(e) === k).length;
+          return n ? [STYLE[st], PRICE_LABEL[k], n, aed(PRICE[k]), aed(n * PRICE[k])] : null;
+        }).filter(Boolean)),
+        foot: [["Total to be collected", "", list.filter(e => price(e)).length, "", aed(total)],
+               ["Collected (paid)", "", list.filter(e => e.paid).length, "", aed(sum(list.filter(e => e.paid)))],
+               ["   Paid by cash", "", list.filter(e => method(e) === "cash").length, "", aed(sum(list.filter(e => method(e) === "cash")))],
+               ["   Paid by bank transfer", "", list.filter(e => method(e) === "transfer").length, "", aed(sum(list.filter(e => method(e) === "transfer")))],
+               ["Outstanding (unpaid)", "", list.filter(e => !e.paid).length, "", aed(sum(list.filter(e => !e.paid)))]],
+        styles: { ...base, fontSize: 9.5, cellPadding: 2.2 },
+        headStyles: { fillColor: ORANGE, textColor: 255, fontStyle: "bold" },
+        footStyles: { fillColor: PEACH, textColor: [20, 20, 20], fontStyle: "bold", fontSize: 10.5 },
+        columnStyles: { 0: { cellWidth: 56 }, 1: { cellWidth: 50 }, 2: { halign: "center" }, 3: { halign: "right" }, 4: { halign: "right" } },
+        didDrawPage: header
+      });
+    }
     const pages = doc.getNumberOfPages();
     for (let i = 1; i <= pages; i++) {
       doc.setPage(i); doc.setFontSize(8); doc.setTextColor(140);
-      doc.text(`G6 Jersey Entries · Page ${i} of ${pages}`, W / 2, H - 6, { align: "center" });
+      doc.text(`${tailor ? "G6 Jersey Production List" : "G6 Jersey Entries"} · Page ${i} of ${pages}`, W / 2, H - 6, { align: "center" });
     }
     return doc.output("blob");
   }
-  $("#pdfBtn").addEventListener("click", () => {
+  function savePdf(tailor) {
     if (!window.jspdf) { toast("PDF tools didn't load. Check your connection and reload."); return; }
     if (!entries.length) { toast("No entries yet."); return; }
     try {
-      const blob = buildPdf();
+      const blob = buildPdf(tailor);
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob); a.download = `G6-jersey-entries-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.href = URL.createObjectURL(blob); a.download = `G6-jersey-${tailor ? "production-list" : "entries"}-${new Date().toISOString().slice(0, 10)}.pdf`;
       document.body.appendChild(a); a.click();
       setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
-    } catch { toast("Couldn't create the PDF."); }
-  });
+    } catch (err) { console.error(err); toast("Couldn't create the PDF."); }
+  }
+  $("#pdfBtn").addEventListener("click", () => savePdf(false));
+  $("#pdfTailorBtn").addEventListener("click", () => savePdf(true));
 
   // ---------- Password gate (Settings) ----------
   const SETTINGS_PASSWORD = "0000";
