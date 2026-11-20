@@ -309,7 +309,7 @@
       <div class="cd-u"><b id="cdS">--</b><span>Seconds</span></div>
     </div>
     <div class="cd-closed">Submissions are closed</div>
-    <div class="cd-date">Deadline: Tuesday, 17 November 2026, 11:59 PM (UAE time)</div>
+    <div class="cd-date" id="cdDate">Deadline: Sunday, 22 November 2026, 11:59 PM (UAE time)</div>
   </section>
 
   <div class="grid">
@@ -432,7 +432,7 @@
         <div class="status"><span class="dot" id="dot"></span><span id="statusTxt">Connecting…</span></div>
       </div>
 
-      <div class="formclosed" id="formClosed">The deadline (17 November 2026) has passed, so new entries and changes are closed. Please contact the organiser if you still need to order.</div>
+      <div class="formclosed" id="formClosed">The deadline (<span id="closedDate">22 November 2026</span>) has passed, so new entries and changes are closed. Please contact the organiser if you still need to order.</div>
       <div class="msg warn" id="ownerClosedNote">The deadline has passed. Members can no longer submit or edit, but you still can as organiser.</div>
       <form id="f" novalidate>
         <div class="row">
@@ -957,6 +957,7 @@
       throw { code: "error" };
     }
     lastLoadError = "";
+    if (j.deadline) setDeadline(j.deadline);
     setEntries(j.entries);
   }
   function setEntries(list) {
@@ -1280,7 +1281,21 @@
   });
 
   // ---------- Deadline countdown ----------
-  const DEADLINE = new Date("2026-11-17T23:59:59+04:00").getTime();
+  let DEADLINE = new Date("2026-11-22T23:59:59+04:00").getTime();
+  function fmtDeadline(ms, long) {
+    const d = new Date(ms);
+    const day = d.toLocaleDateString("en-GB", { timeZone: "Asia/Dubai", weekday: long ? "long" : undefined, day: "numeric", month: "long", year: "numeric" });
+    const time = d.toLocaleTimeString("en-US", { timeZone: "Asia/Dubai", hour: "numeric", minute: "2-digit" });
+    return long ? `${day}, ${time} (UAE time)` : day;
+  }
+  function setDeadline(iso) {
+    const ms = Date.parse(iso || "");
+    if (!ms || ms === DEADLINE) return;
+    DEADLINE = ms;
+    $("#cdDate").textContent = "Deadline: " + fmtDeadline(ms, true);
+    $("#closedDate").textContent = fmtDeadline(ms, false);
+    tick();
+  }
   const isClosed = () => Date.now() > DEADLINE;
   let wasClosed = null;
   function applyDeadline() {

@@ -46,8 +46,8 @@ Commit the change. GitHub Pages updates within a minute or two.
 - **Several people at once:** every save takes a lock in the script, so simultaneous entries are all kept.
 - **Changing sizes:** each person picks a 4–6 digit PIN when they submit. They use **Edit / change size**
   on their card and enter the PIN. The same browser remembers it. PINs are stored only as a hash.
-- **Deadline:** 17 Nov 2026, 11:59 PM UAE time, enforced by the script as well as the page.
-  Change `DEADLINE` at the top of `Code.gs` if needed, then **Deploy > Manage deployments > Edit > New version**.
+- **Deadline:** change it any time on the entries page (Settings > Submission deadline). It is stored in the script
+  (Script Property `DEADLINE`) and enforced by the script as well as the page. Default: 22 Nov 2026, 11:59 PM UAE time.
 - **If you edit Code.gs later**, always redeploy as a *new version* of the same deployment so the URL stays the same.
 - The Sheet itself is your raw data. Don't rename the `Orders` tab or its header row.
 

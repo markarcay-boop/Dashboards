@@ -6,16 +6,24 @@
  *
  * The web page talks to this script:
  *   GET  -> list of all entries (PINs are never sent back)
- *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin" | "setPaid" | "uploadProof" | "proofs", ...}
+ *   POST -> {action: "create" | "update" | "delete" | "verify" | "admin" | "setPaid" | "uploadProof" | "proofs" | "setDeadline", ...}
  *
  * Several people can submit at the same time: every write takes a script
  * lock, so rows are never lost or overwritten.
  */
 
 const SHEET_NAME = 'Orders';
-// Members can't add or change entries after this moment (UAE time).
-// The organiser (admin key) still can.
-const DEADLINE = new Date('2026-11-17T23:59:59+04:00');
+// Members can't add or change entries after the deadline (UAE time).
+// The organiser (admin key) still can. The organiser changes the deadline from
+// the Settings (entries) page; it is stored in the Script Property DEADLINE.
+// This default is used until a deadline has been saved there.
+const DEFAULT_DEADLINE = '2026-11-22T23:59:59+04:00';
+
+function deadline_() {
+  const saved = PropertiesService.getScriptProperties().getProperty('DEADLINE');
+  const d = new Date(saved || DEFAULT_DEADLINE);
+  return isNaN(d.getTime()) ? new Date(DEFAULT_DEADLINE) : d;
+}
 
 const FIELDS = [
   'id', 'fullName', 'sex', 'kitStyle', 'items', 'sleeves', 'jerseyName', 'jerseyNumber',
@@ -154,7 +162,7 @@ function list_() { return rows_().map(public_); }
 
 // ---------- web endpoints ----------
 function doGet() {
-  return out_({ ok: true, entries: list_() });
+  return out_({ ok: true, entries: list_(), deadline: deadline_().toISOString() });
 }
 
 function doPost(e) {
@@ -170,6 +178,14 @@ function doPost(e) {
     if (!r) return out_({ ok: false, error: 'not_found' });
     if (!r.pinHash || r.pinHash !== hash_(String(req.pin || ''))) return out_({ ok: false, error: 'bad_pin' });
     return out_({ ok: true });
+  }
+
+  if (action === 'setDeadline') {
+    if (!admin && !isSettings_(req.password)) return out_({ ok: false, error: 'not_admin' });
+    const d = new Date(String(req.deadline || ''));
+    if (isNaN(d.getTime()) || d.getFullYear() < 2020 || d.getFullYear() > 2100) return out_({ ok: false, error: 'invalid' });
+    PropertiesService.getScriptProperties().setProperty('DEADLINE', d.toISOString());
+    return out_({ ok: true, deadline: d.toISOString() });
   }
 
   if (action === 'proofs') {
@@ -217,7 +233,7 @@ function doPost(e) {
   try {
     const sh = sheet_();
     const now = new Date().toISOString();
-    const closed = new Date() > DEADLINE;
+    const closed = new Date() > deadline_();
 
     if (action === 'create') {
       if (closed && !admin) return out_({ ok: false, error: 'closed' });

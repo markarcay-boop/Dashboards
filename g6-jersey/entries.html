@@ -82,6 +82,18 @@
   .login input{width:100%;margin-bottom:12px}
   .err{color:#ff9a9a;font-size:13px;min-height:18px;margin-bottom:8px}
   .gone{display:none !important}
+  .dlbox{display:flex;flex-wrap:wrap;align-items:flex-end;gap:14px;padding:14px 16px;margin-bottom:16px;border-radius:12px;
+    border:1px solid rgba(255,214,10,.35);background:linear-gradient(90deg, rgba(255,214,10,.08), transparent), var(--panel2)}
+  .dlinfo{display:flex;flex-direction:column;gap:2px;flex:1 1 260px}
+  .dllbl{font-size:11.5px;letter-spacing:1.5px;text-transform:uppercase;color:#FFD60A;font-weight:700}
+  .dlinfo b{font-family:Oswald;font-size:19px;letter-spacing:.5px;color:#FFD60A}
+  .dlleft{font-size:12.5px;color:var(--muted)}
+  .dlleft.closed{color:#ff9a9a;font-weight:600}
+  .dledit{display:flex;flex-direction:column;gap:4px}
+  .dledit label{font-size:12px;color:var(--muted);font-weight:600}
+  .dledit input{color-scheme:dark}
+  .dlmsg{font-size:13px;font-weight:600;min-width:120px}
+  .dlmsg.ok{color:var(--ok)} .dlmsg.err{color:#ff9a9a}
   .modalbg{position:fixed;inset:0;background:rgba(5,8,12,.78);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px}
   .paycard{width:100%;max-width:440px}
   .paycard h2{margin:0;font-family:Oswald;letter-spacing:1px;text-transform:uppercase}
@@ -124,6 +136,19 @@
   </section>
 
   <section class="card gone" id="mainCard">
+    <div class="dlbox">
+      <div class="dlinfo">
+        <span class="dllbl">Submission deadline</span>
+        <b id="dlNow">Loading…</b>
+        <span id="dlLeft" class="dlleft"></span>
+      </div>
+      <div class="dledit">
+        <label for="dlInput">New deadline (UAE time)</label>
+        <input type="datetime-local" id="dlInput">
+      </div>
+      <button class="btn primary" id="dlSave" type="button">Save deadline</button>
+      <span class="dlmsg" id="dlMsg"></span>
+    </div>
     <div class="stats" id="stats"></div>
     <div class="tools">
       <input id="q" type="search" placeholder="Search name, jersey name, number, notes…">
@@ -254,6 +279,7 @@
     const j = await r.json();
     if (!j || !j.ok || !Array.isArray(j.entries)) throw new Error("bad");
     entries = j.entries.filter(e => e && e.id);
+    showDeadline(j.deadline);
     render();
   }
   function setStatus(ok) {
@@ -311,6 +337,49 @@
     if (sortKey === c.k) sortDir = -sortDir; else { sortKey = c.k; sortDir = 1; }
     render();
   });
+  // ---------- Submission deadline ----------
+  let deadlineMs = 0, dlDirty = false;
+  const dubaiInput = ms => new Date(ms + 4 * 3600 * 1000).toISOString().slice(0, 16); // value for datetime-local, in UAE time
+  function fmtDl(ms) {
+    const d = new Date(ms);
+    return d.toLocaleDateString("en-GB", { timeZone: "Asia/Dubai", weekday: "long", day: "numeric", month: "long", year: "numeric" }) +
+      ", " + d.toLocaleTimeString("en-US", { timeZone: "Asia/Dubai", hour: "numeric", minute: "2-digit" });
+  }
+  function showDeadline(iso) {
+    const ms = Date.parse(iso || "");
+    if (!ms) {
+      $("#dlNow").textContent = "Not available";
+      $("#dlLeft").textContent = "Update the Apps Script (Code.gs) to manage the deadline here.";
+      return;
+    }
+    deadlineMs = ms;
+    $("#dlNow").textContent = fmtDl(ms) + " (UAE time)";
+    const left = ms - Date.now(), el = $("#dlLeft");
+    if (left <= 0) { el.textContent = "Closed: members can no longer submit or edit."; el.className = "dlleft closed"; }
+    else {
+      const d = Math.floor(left / 86400000), h = Math.floor(left / 3600000) % 24;
+      el.textContent = `Open · ${d ? d + " day" + (d === 1 ? "" : "s") + " " : ""}${h} hour${h === 1 ? "" : "s"} left`; el.className = "dlleft";
+    }
+    if (!dlDirty) $("#dlInput").value = dubaiInput(ms);
+  }
+  $("#dlInput").addEventListener("input", () => { dlDirty = true; $("#dlMsg").textContent = ""; });
+  $("#dlSave").addEventListener("click", async () => {
+    const v = $("#dlInput").value, msg = $("#dlMsg");
+    if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v)) { msg.textContent = "Pick a date and time."; msg.className = "dlmsg err"; return; }
+    const iso = `${v}:${v.endsWith(":59") ? "59" : "00"}+04:00`;
+    const btn = $("#dlSave"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "setDeadline", deadline: iso, password: SETTINGS_PASSWORD }) });
+      const j = await r.json();
+      if (!j || !j.ok) throw new Error(j && j.error);
+      dlDirty = false; showDeadline(j.deadline);
+      msg.textContent = "✓ Saved. The countdown updates for everyone."; msg.className = "dlmsg ok";
+    } catch (err) {
+      msg.textContent = String(err && err.message) === "invalid" ? "Update the Apps Script (Code.gs) first." : "Couldn't save. Try again.";
+      msg.className = "dlmsg err";
+    } finally { btn.disabled = false; btn.textContent = "Save deadline"; }
+  });
+
   // ---------- Payment window ----------
   let payTarget = null;
   function setPayChoice(v) {
