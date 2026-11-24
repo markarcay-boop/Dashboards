@@ -51,6 +51,8 @@ button{cursor:pointer}
 .eventbar{background:var(--navy);color:#fff}
 .eventbar .wrap{display:flex;flex-wrap:wrap;gap:6px 26px;justify-content:center;padding:10px 16px;font-family:var(--display);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:17px}
 .eventbar b{color:#ffd84d;font-weight:800}
+.venue{color:#ffd84d;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+.venue:hover{color:#fff}
 .superbtn{border:1.5px solid rgba(255,255,255,.55);background:transparent;color:#fff;border-radius:999px;padding:2px 14px;font:inherit;font-size:14px;letter-spacing:.08em;text-transform:uppercase}
 .superbtn:hover,.superbtn[aria-pressed="true"]{background:#fff;color:var(--navy)}
 .bars{display:grid;gap:8px;margin:0 0 20px}
@@ -241,7 +243,7 @@ footer{text-align:center;color:var(--muted);font-size:13.5px;padding:0 16px 34px
   </svg>
 </header>
 <div class="eventbar"><div class="wrap">
-  <span>Players Profile Portal</span><span><b>Wed, Dec 2, 2026</b></span><span><b>6:00 – 10:00 PM</b></span><span>Venue: <b>TBA</b></span><button class="superbtn" id="superBtn">Super Admin</button>
+  <span>Players Profile Portal</span><span><b>Wed, Dec 2, 2026</b></span><span><b>7:00 PM – 12:00 AM</b></span><span>Venue: <a class="venue" href="https://share.google/6YFJm6ICbhwIzBJzw" target="_blank" rel="noopener">Al Wasl Sports Club</a></span><button class="superbtn" id="superBtn">Super Admin</button>
 </div></div>
 <div class="demo" id="demoBar" hidden>Preview mode — entries are saved only in this browser. Admin passwords in preview: <b>demo</b>. Connect the Google Sheet to go live.</div>
 
@@ -262,7 +264,8 @@ footer{text-align:center;color:var(--muted);font-size:13.5px;padding:0 16px 34px
    Leave empty to run in preview mode (data stays in this browser only). */
 const API_URL = "https://script.google.com/macros/s/AKfycbyOzsWhSt-c_YJJcKjeGgmppgW4r2OqD2NWvKwJY0wAjFYlSWzagovShf_BkCwQieqi/exec";
 
-const EVENT = {title:"Cluster B Unity Games 2026", date:"Wednesday, December 2, 2026", time:"6:00 – 10:00 PM", venue:"TBA"};
+const EVENT = {title:"Cluster B Unity Games 2026", date:"Wednesday, December 2, 2026", time:"7:00 PM – 12:00 AM", venue:"Al Wasl Sports Club",
+  venueUrl:"https://share.google/6YFJm6ICbhwIzBJzw"};
 const TEAMS = [
   {id:"rolla",        name:"Rolla",        color:"#1c1c1e"},
   {id:"sharjah",      name:"Sharjah",      color:"#d81b74"},
@@ -423,7 +426,7 @@ function renderRegister(){
     const st = teamOf(state.submitted.team);
     b.innerHTML = `<div class="done"><div class="tick">✓</div><h2>You're registered!</h2>
       <p><b>${esc(state.submitted.name)}</b> — Team ${esc(st.name)}<br>${state.submitted.sports.map(x=>esc(sportOf(x).name)).join(" · ")}</p>
-      <p style="color:var(--muted)">Your profile and signed Oath of Sportsmanship have been sent to the Team ${esc(st.name)} admin.<br>See you on ${esc(EVENT.date)}, ${esc(EVENT.time)}.</p>
+      <p style="color:var(--muted)">Your profile and signed Oath of Sportsmanship have been sent to the Team ${esc(st.name)} admin.<br>See you on ${esc(EVENT.date)}, ${esc(EVENT.time)}<br>at <a href="${esc(EVENT.venueUrl)}" target="_blank" rel="noopener" style="color:var(--team);font-weight:700">${esc(EVENT.venue)}</a>.</p>
       <button class="btn ghost" id="again">Register another player</button></div>`;
     $("#again").onclick = () => setView("register");
     return;
@@ -862,7 +865,7 @@ function editPlayer(id){
 
 async function superPdf(d){
   const pages = [], stamp = "Generated " + new Date().toLocaleString("en-GB",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
-  const sub = `${d.length} player${d.length===1?"":"s"} · Dec 2, 2026 · ${EVENT.time} · Venue: ${EVENT.venue}`;
+  const sub = `${d.length} player${d.length===1?"":"s"} · Dec 2, 2026 · ${EVENT.time} · ${EVENT.venue}`;
   const count = (tid, sid) => d.filter(x => x.team === tid && (!sid || x.sports.includes(sid))).length;
   let pg = await newPage(ALL, "ALL TEAMS — PLAYERS REPORT", sub), x = pg.x, y = 262;
   const done = () => { footer(x, stamp, `Page ${pages.length+1}`); pages.push(toJpg(pg.c)); };
@@ -925,7 +928,7 @@ async function newPage(team, title, sub){
   if(cfo) x.drawImage(cfo, PW-60-150, 46, 150, 150);
   x.textAlign = "center"; x.fillStyle = "#0d2a5c"; x.font = `bold 44px ${FONT}`; x.fillText("CLUSTER B UNITY GAMES 2026", PW/2, 92);
   let fs = 38; x.fillStyle = team.color; do { x.font = `bold ${fs}px ${FONT}`; } while(x.measureText(title).width > 760 && --fs > 22); x.fillText(title, PW/2, 144);
-  x.fillStyle = "#5b6780"; x.font = `23px ${FONT}`; x.fillText(fitText(x, sub, 760), PW/2, 184);
+  let ss = 23; x.fillStyle = "#5b6780"; do { x.font = `${ss}px ${FONT}`; } while(x.measureText(sub).width > 780 && --ss > 16); x.fillText(fitText(x, sub, 780), PW/2, 184);
   x.fillStyle = team.color; x.fillRect(60, 222, PW-120, 6);
   x.textAlign = "left";
   return {c, x};
