@@ -340,6 +340,7 @@ main{max-width:1500px}
         </div>
         <div class="gen-actions">
           <button class="btn btn-go" id="btnGen">🎰 Generate Schedule</button>
+          <button class="btn btn-navy" data-pdf>📄 Save results PDF</button>
           <button class="btn btn-ghost" id="btnPrint">Print</button>
         </div>
       </div>
@@ -365,8 +366,13 @@ main{max-width:1500px}
 
   <!-- ============ DASHBOARD ============ -->
   <section class="page" id="pg-score">
-    <h2 class="sect-title">Committee Dashboard</h2>
-    <p class="sub">Press <b>Start</b> when a game begins. Enter points as they are won. Winners move up the bracket automatically.</p>
+    <div class="gen-head" style="margin:0">
+      <div>
+        <h2 class="sect-title">Committee Dashboard</h2>
+        <p class="sub">Press <b>Start</b> when a game begins. Enter points as they are won. Winners move up the bracket automatically.</p>
+      </div>
+      <div class="gen-actions"><button class="btn btn-sm btn-navy" data-pdf>📄 Save results PDF</button></div>
+    </div>
     <div class="sb-top" id="sbTop"></div>
     <div class="rule" id="ruleTxt"></div>
     <div class="courts">
@@ -882,6 +888,94 @@ $('#teamFields').addEventListener('change',e=>{
 $('#btnClearScores').addEventListener('click',()=>{ if(!confirm('Clear all scores and timers? The draws stay.')) return; S.results={}; S.timers={}; save(); renderAll(); toast('Scores cleared'); });
 $('#btnClearDraw').addEventListener('click',()=>{ if(!confirm('Clear all four draws and all scores?')) return; S.draws={}; S.results={}; S.timers={}; save(); renderAll(); toast('Draws cleared'); });
 $('#btnFactory').addEventListener('click',()=>{ if(!confirm('Reset everything, including team names and settings?')) return; S=clone(DEFAULTS); save(); renderAll(); renderSettings(); toast('Reset to defaults'); });
+
+/* =================== RESULTS PDF =================== */
+function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=no; document.head.appendChild(s); }); }
+const HOW = {time:'Time-up', 'golden point':'Golden point', manual:'Concluded'};
+function matchRow(id,p){
+  const [ev,r]=split(id), q=p[id], [a,b]=teamsOf(id), rs=res(id), w=winnerOf(id), st=status(id);
+  const nm=(t,i)=> t!=null ? tName(t) : phOf(r,i);
+  let score='-', winner='-', note='';
+  if(w!=null){ score=`${rs.s[0]} - ${rs.s[1]}`; winner=tName(w); note=HOW[rs.how]||'Final'; }
+  else if(st==='live'){ score=`${rs?rs.s[0]:0} - ${rs?rs.s[1]:0}`; note='In play'; }
+  else note = st==='wait' ? 'Awaiting teams' : 'Not played';
+  return [`G${q.game}`, fmtT(q.start), `Court ${q.court}`, RNAME[r], nm(a,0), nm(b,1), score, winner, note];
+}
+async function savePDF(btn){
+  const old=btn.textContent; btn.disabled=true; btn.textContent='Preparing PDF…';
+  try{
+    if(!window.jspdf) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    if(!window.jspdf.jsPDF.API.autoTable) await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js');
+  }catch(e){
+    btn.disabled=false; btn.textContent=old;
+    toast('Could not load the PDF tool (no internet?). Opening Print — choose “Save as PDF”.'); setTimeout(()=>window.print(),600); return;
+  }
+  try{
+    const st=S.settings, p=plan(), {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+    const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+    const NAVY=[15,42,92], MEN=[29,74,160], WOMEN=[194,64,138], GREEN=[31,157,85];
+
+    // header band
+    doc.setFillColor(...NAVY); doc.rect(0,0,W,28,'F');
+    try{ doc.addImage(document.querySelector('.logo').src,'PNG',9,3,16.5,22); }catch(e){}
+    doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(17);
+    doc.text(`UNITY GAMES 2026  ·  ${st.cluster.toUpperCase()}`, 30, 12);
+    doc.setFontSize(12); doc.setTextColor(255,207,63);
+    doc.text(`${st.title.toUpperCase()}  ·  RESULTS`, 30, 20);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(255);
+    doc.text(fmtDate(st.date), W-10, 10, {align:'right'});
+    doc.text(`Venue: ${st.venue}`, W-10, 15.5, {align:'right'});
+    doc.text(`${fmtT(toMin(st.start))} - ${fmtT(p._end)}  ·  ${st.duration} min per game`, W-10, 21, {align:'right'});
+    ['#e53935','#fb8c00','#fdd835','#43a047','#1e88e5'].forEach((c,i)=>{ doc.setFillColor(c); doc.rect(0,28+i*0.8,W,0.8,'F'); });
+
+    // summary + champions
+    const done=ALL.filter(id=>winnerOf(id)!=null).length;
+    let y=40;
+    doc.setTextColor(...NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+    doc.text('CHAMPIONS', 10, y);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(107,116,136);
+    doc.text(`${done} of ${ALL.length} games completed  ·  Generated ${new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}`, W-10, y, {align:'right'});
+    const champRows = EVENTS.map(e=>{
+      const fid=mid(e.id,'F'), w=winnerOf(fid), [a,b]=teamsOf(fid), rs=res(fid);
+      return [e.name, `Court ${e.court}`, w!=null?tName(w):'-', w!=null?tName(w===a?b:a):'-', w!=null?`${Math.max(...rs.s)} - ${Math.min(...rs.s)}`:'-'];
+    });
+    doc.autoTable({ startY:y+3, head:[['Event','Court','Champion','Runner-up','Final score']], body:champRows,
+      theme:'grid', margin:{left:10,right:10},
+      headStyles:{fillColor:NAVY, textColor:255, fontStyle:'bold'}, styles:{fontSize:10, cellPadding:2.4},
+      didParseCell:d=>{ if(d.section==='body' && d.column.index===2 && d.cell.raw!=='-'){ d.cell.styles.fontStyle='bold'; d.cell.styles.textColor=GREEN; } } });
+    y=doc.lastAutoTable.finalY+10;
+
+    // per-event results
+    ['Singles','Doubles'].forEach(cat=>EVENTS.filter(e=>e.cat===cat).forEach(e=>{
+      if(y>H-55){ doc.addPage(); y=16; }
+      const col=e.court===1?MEN:WOMEN, d=S.draws[e.id];
+      doc.setFillColor(...col); doc.rect(10,y-4.5,3,6,'F');
+      doc.setTextColor(...NAVY); doc.setFont('helvetica','bold'); doc.setFontSize(12);
+      doc.text(`${e.name.toUpperCase()}  ·  COURT ${e.court}`, 15, y);
+      if(d){ doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(107,116,136);
+        doc.text(`Draw: Prelim ${tName(d[0])} vs ${tName(d[1])}  ·  Byes: ${tName(d[2])} (SF1), ${tName(d[3])} & ${tName(d[4])} (SF2)`, W-10, y, {align:'right'}); }
+      doc.autoTable({ startY:y+3, margin:{left:10,right:10},
+        head:[['Game','Time','Court','Round','Team 1','Team 2','Score','Winner','Result']],
+        body: ROUNDS.map(r=>matchRow(mid(e.id,r),p)),
+        theme:'striped', headStyles:{fillColor:col, textColor:255}, styles:{fontSize:9.5, cellPadding:2.2},
+        columnStyles:{0:{cellWidth:14,fontStyle:'bold'},1:{cellWidth:22},2:{cellWidth:18},3:{cellWidth:28},6:{cellWidth:20,halign:'center'},8:{cellWidth:30}},
+        didParseCell:dd=>{ if(dd.section==='body' && dd.column.index===7 && dd.cell.raw!=='-'){ dd.cell.styles.fontStyle='bold'; dd.cell.styles.textColor=GREEN; } } });
+      y=doc.lastAutoTable.finalY+10;
+    }));
+
+    // footer
+    const n=doc.getNumberOfPages();
+    for(let i=1;i<=n;i++){ doc.setPage(i); doc.setFontSize(8.5); doc.setTextColor(140);
+      doc.text(`Unity Games 2026 · ${st.cluster} · Badminton Open Play — knockout format, ${st.duration}-minute games, higher points at time-up wins`, 10, H-6);
+      doc.text(`Page ${i} of ${n}`, W-10, H-6, {align:'right'}); }
+
+    doc.save(`UnityGames2026_Badminton_Results_${st.date}.pdf`);
+    toast('Results PDF saved');
+  }catch(e){ console.error(e); toast('Sorry — the PDF could not be created.'); }
+  btn.disabled=false; btn.textContent=old;
+}
+document.querySelectorAll('[data-pdf]').forEach(b=>b.addEventListener('click',()=>savePDF(b)));
 
 /* =================== CONFETTI =================== */
 function confetti(){
