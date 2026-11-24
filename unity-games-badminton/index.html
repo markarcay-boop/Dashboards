@@ -278,6 +278,15 @@ main{max-width:1500px}
 .mini .t{font-size:12.5px;color:var(--muted);font-weight:600}
 .mini .m{font-weight:600;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini .m .ph{color:#9aa1ad;font-weight:500}
+.bx .nm small{display:block;font-size:11.5px;font-weight:500;color:var(--muted);line-height:1.1;margin-top:1px;overflow:hidden;text-overflow:ellipsis}
+.bx.champ .nm small{color:#7a5a00}
+.pn{color:var(--muted);font-weight:500;font-size:.88em}
+.trow .tn{display:flex;flex-direction:column;gap:5px;min-width:0;white-space:normal}
+.trow .tn > b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pl{display:flex;gap:6px}
+.pl input{height:30px;min-width:0;width:100%;border:1.5px dashed #c3cad6;border-radius:7px;padding:0 8px;font-size:14px;font-family:var(--body);background:#fff;color:var(--ink)}
+.pl input:focus{outline:none;border-style:solid;border-color:var(--navy2);box-shadow:0 0 0 3px rgba(29,74,160,.15)}
+.pl input::placeholder{color:#a3aab6}
 .mini .rt{display:flex;align-items:center;gap:6px}
 .mini.done{opacity:.85}
 .mini.done .m b{color:var(--green)}
@@ -454,6 +463,7 @@ const DEFAULTS = {
   settings:{ title:'Badminton Open Play', cluster:'Cluster B', date:'2026-12-02', venue:'Al Wasl Sports Club',
              start:'19:00', duration:20, brk:5, points:21, sound:true,
              teams:['Rolla','Sharjah','Sharjah East','Ghusais','Al Nahda'] },
+  players:{},  // eventId -> {teamIdx: [name1, name2]}
   draws:{},    // eventId -> [5 team idx]: [P1 A, P1 B, Bye→SF1, Bye→SF2, Bye→SF2]
   results:{},  // matchId -> {s:[a,b], winner, final, gp, how}
   timers:{}    // matchId -> {running, endsAt, remaining, expired}
@@ -489,6 +499,9 @@ function mmss(sec){ sec=Math.max(0,sec); return String(Math.floor(sec/60)).padSt
 /* =================== TOURNAMENT LOGIC =================== */
 function res(id){ return S.results[id] || null; }
 function ensureRes(id){ if(!S.results[id]) S.results[id]={s:[0,0], winner:null, final:false, gp:false}; return S.results[id]; }
+function plArr(ev,t){ return (S.players[ev] && S.players[ev][t]) || []; }
+function plText(ev,t){ return t==null ? '' : plArr(ev,t).map(x=>(x||'').trim()).filter(Boolean).join(' / '); }
+function plSpan(ev,t){ const x=plText(ev,t); return x ? ` <span class="pn">(${esc(x)})</span>` : ''; }
 function winnerOf(id){ const r=res(id); return r && r.final ? r.winner : null; }
 function teamsOf(id){
   const [ev,r]=split(id), d=S.draws[ev]; if(!d) return [null,null];
@@ -613,7 +626,7 @@ function advanced(ev,bid){
 function boxInner(ev,bid){
   const team=boxTeam(ev,bid);
   if(bid==='ch') return team==null ? `<div class="bx-in"><span class="ph" style="color:var(--green)">🏆 Champion</span></div>`
-                                   : `<div class="bx-in"><span class="nm">🏆 ${esc(tName(team))}</span></div>`;
+                                   : `<div class="bx-in"><span class="nm">🏆 ${esc(tName(team))}${plText(ev,team)?`<small>${esc(plText(ev,team))}</small>`:''}</span></div>`;
   if(team==null){
     if(bid[0]==='p') return `<div class="bx-in"><span class="q">?</span></div>`;
     const [r,side]=BOXMATCH[bid]; return `<div class="bx-in"><span class="ph">${phOf(r,side)}</span></div>`;
@@ -621,7 +634,7 @@ function boxInner(ev,bid){
   let extra='';
   if(BYES[bid]!=null) extra='<span class="bye">BYE</span>';
   else { const [r,side]=BOXMATCH[bid], rs=res(mid(ev,r)); if(rs && (rs.final||rs.s[0]||rs.s[1])) extra=`<span class="sc">${rs.s[side]}</span>`; }
-  return `<div class="stripe" style="background:${tCol(team)}"></div><div class="bx-in"><span class="nm">${esc(tName(team))}</span>${extra}</div>`;
+  return `<div class="stripe" style="background:${tCol(team)}"></div><div class="bx-in"><span class="nm">${esc(tName(team))}${plText(ev,team)?`<small>${esc(plText(ev,team))}</small>`:''}</span>${extra}</div>`;
 }
 function boxClass(ev,bid){
   if(bid==='ch') return 'bx champ' + (winnerOf(mid(ev,'F'))!=null?' crowned':'');
@@ -657,7 +670,7 @@ function renderOOP(){
   $('#oopSub').textContent = `${st.duration} min per game · ${st.brk} min break · Court 1 Men's / Court 2 Women's · Singles first, then Doubles`;
   const cell = id => {
     const [ev,r]=split(id), [a,b]=teamsOf(id), rs=res(id), w=winnerOf(id), q=p[id];
-    const side=(t,i)=> t!=null ? `<span class="dot" style="background:${tCol(t)}"></span>${esc(tName(t))}` : `<span style="color:var(--muted)">${phOf(r,i)}</span>`;
+    const side=(t,i)=> t!=null ? `<span class="dot" style="background:${tCol(t)}"></span>${esc(tName(t))}${plSpan(ev,t)}` : `<span style="color:var(--muted)">${phOf(r,i)}</span>`;
     let out='';
     if(w!=null) out=`<div class="r"><span class="res-w">${esc(tName(w))}</span> won ${Math.max(...rs.s)}–${Math.min(...rs.s)}</div>`;
     else if(status(id)==='live') out=`<div class="r" style="color:var(--teal);font-weight:700">In play ${rs?rs.s[0]+'–'+rs.s[1]:''}</div>`;
@@ -723,7 +736,7 @@ $('#btnPrint').addEventListener('click', ()=>window.print());
 /* =================== DASHBOARD =================== */
 function current(c){ return SEQ[c].find(id=>status(id)!=='done') || null; }
 function vs(id){ const [ev,r]=split(id), [a,b]=teamsOf(id);
-  return `${a!=null?esc(tName(a)):`<span class="ph">${phOf(r,0)}</span>`} <span class="vs">vs</span> ${b!=null?esc(tName(b)):`<span class="ph">${phOf(r,1)}</span>`}`; }
+  return `${a!=null?esc(tName(a))+plSpan(ev,a):`<span class="ph">${phOf(r,0)}</span>`} <span class="vs">vs</span> ${b!=null?esc(tName(b))+plSpan(ev,b):`<span class="ph">${phOf(r,1)}</span>`}`; }
 
 function renderScore(){
   const p=plan(), st=S.settings;
@@ -741,7 +754,7 @@ function renderScore(){
       <div style="text-align:right"><div class="big ${cls}" data-timer="${live}">${t&&t.expired?'TIME':mmss(rem)}</div><div class="sc2">${rs.s[0]} – ${rs.s[1]}</div></div></div></div>`;
   };
   const done=ALL.filter(id=>winnerOf(id)!=null).length;
-  const champs = EVENTS.map(e=>{ const w=winnerOf(mid(e.id,'F')); return `<span>${e.name}</span><span>${w!=null?`<b>🏆 ${esc(tName(w))}</b>`:'—'}</span>`; }).join('');
+  const champs = EVENTS.map(e=>{ const w=winnerOf(mid(e.id,'F')); return `<span>${e.name}</span><span>${w!=null?`<b>🏆 ${esc(tName(w))}</b>${plSpan(e.id,w)}`:'—'}</span>`; }).join('');
   $('#sbTop').innerHTML = courtTile(1) + courtTile(2) +
     `<div class="kpi champ"><div class="k">Champions · ${done}/${ALL.length} games played</div><div class="champ-list">${champs}</div></div>`;
 
@@ -765,7 +778,7 @@ function miniCard(id,p,st){
   if(st==='done') right=`<span class="pill done">${Math.max(...rs.s)}–${Math.min(...rs.s)}</span><button class="btn btn-sm btn-ghost" data-act="reopen" data-id="${id}">Edit</button>`;
   else if(st==='ready' && S.draws[ev]) right=`<button class="btn btn-sm btn-ghost" data-act="start" data-id="${id}">Start</button>`;
   else right=`<span class="pill ${st}">${PILL[st]}</span>`;
-  const match = w!=null ? (()=>{ const [a,b]=teamsOf(id); return `<b>${esc(tName(w))}</b> <span class="vs">def.</span> ${esc(tName(w===a?b:a))}`; })() : vs(id);
+  const match = w!=null ? (()=>{ const [a,b]=teamsOf(id); const l=w===a?b:a; return `<b>${esc(tName(w))}</b>${plSpan(ev,w)} <span class="vs">def.</span> ${esc(tName(l))}${plSpan(ev,l)}`; })() : vs(id);
   return `<div class="mini ${st}"><span class="g">G${q.game}</span><div style="min-width:0"><div class="t">${fmtT(q.start)} · ${EV[ev].name} · ${RNAME[r]}</div><div class="m">${match}</div></div><div class="rt">${right}</div></div>`;
 }
 function bigCard(id,p){
@@ -773,7 +786,7 @@ function bigCard(id,p){
   const lead = rs.s[0]>rs.s[1]?0 : rs.s[1]>rs.s[0]?1 : -1;
   const rows=[a,b].map((tm,side)=>`<div class="trow ${lead===side?'win':''}">
       <span class="sw" style="background:${tCol(tm)}"></span>
-      <span class="tn">${esc(tName(tm))}</span>
+      <span class="tn"><b>${esc(tName(tm))}</b><span class="pl">${(EV[ev].cat==='Doubles'?[0,1]:[0]).map(k=>`<input type="text" maxlength="40" placeholder="${EV[ev].cat==='Doubles'?'Player '+(k+1):'Player name'}" value="${esc(plArr(ev,tm)[k]||'')}" data-pl-ev="${ev}" data-pl-team="${tm}" data-pl-i="${k}">`).join('')}</span></span>
       <button class="pm" data-act="dec" data-id="${id}" data-side="${side}" aria-label="minus">−</button>
       <input class="scin" type="number" min="0" inputmode="numeric" value="${rs.s[side]}" data-id="${id}" data-side="${side}">
       <button class="pm" data-act="inc" data-id="${id}" data-side="${side}" aria-label="plus">+</button>
@@ -830,6 +843,13 @@ document.querySelector('#pg-score').addEventListener('change', e=>{
   const inp=e.target; if(!inp.matches('.scin')) return;
   setScore(inp.dataset.id, +inp.dataset.side, parseInt(inp.value,10)||0);
   save(); renderAll();
+});
+
+document.querySelector('#pg-score').addEventListener('input', e=>{
+  const inp=e.target; if(!inp.dataset.plEv) return;
+  const ev=inp.dataset.plEv, t=+inp.dataset.plTeam, k=+inp.dataset.plI;
+  S.players[ev]=S.players[ev]||{}; const arr=(S.players[ev][t]||[]).slice(); arr[k]=inp.value; S.players[ev][t]=arr;
+  save(); clearTimeout(window._plT); window._plT=setTimeout(()=>{ renderOOP(); EVENTS.forEach(x=>renderBracket(x.id)); fitBrackets(); },400);
 });
 
 /* timer engine: runs for every running game, whichever page is open */
@@ -894,7 +914,7 @@ function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createE
 const HOW = {time:'Time-up', 'golden point':'Golden point', manual:'Concluded'};
 function matchRow(id,p){
   const [ev,r]=split(id), q=p[id], [a,b]=teamsOf(id), rs=res(id), w=winnerOf(id), st=status(id);
-  const nm=(t,i)=> t!=null ? tName(t) : phOf(r,i);
+  const nm=(t,i)=> t!=null ? (plText(ev,t) ? `${tName(t)}\n${plText(ev,t)}` : tName(t)) : phOf(r,i);
   let score='-', winner='-', note='';
   if(w!=null){ score=`${rs.s[0]} - ${rs.s[1]}`; winner=tName(w); note=HOW[rs.how]||'Final'; }
   else if(st==='live'){ score=`${rs?rs.s[0]:0} - ${rs?rs.s[1]:0}`; note='In play'; }
@@ -938,7 +958,8 @@ async function savePDF(btn){
     doc.text(`${done} of ${ALL.length} games completed  ·  Generated ${new Date().toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'})}`, W-10, y, {align:'right'});
     const champRows = EVENTS.map(e=>{
       const fid=mid(e.id,'F'), w=winnerOf(fid), [a,b]=teamsOf(fid), rs=res(fid);
-      return [e.name, `Court ${e.court}`, w!=null?tName(w):'-', w!=null?tName(w===a?b:a):'-', w!=null?`${Math.max(...rs.s)} - ${Math.min(...rs.s)}`:'-'];
+      const lab=t=> plText(e.id,t) ? `${tName(t)}\n${plText(e.id,t)}` : tName(t);
+      return [e.name, `Court ${e.court}`, w!=null?lab(w):'-', w!=null?lab(w===a?b:a):'-', w!=null?`${Math.max(...rs.s)} - ${Math.min(...rs.s)}`:'-'];
     });
     doc.autoTable({ startY:y+3, head:[['Event','Court','Champion','Runner-up','Final score']], body:champRows,
       theme:'grid', margin:{left:10,right:10},
