@@ -11,3 +11,4 @@ Demo dashboards by ITV (Intertech Vision). All data shown is fictional sample da
 - [Mark Arcay - Technical Capability Profile](mark-arcay/)
 - [G6 Jersey Configurator](g6-jersey/)
 - [Cluster B Unity Games 2026 - Players Profile Portal](unity-games/)
+- [Cluster B Unity Games 2026 - Badminton Open Play Scheduler](unity-games-badminton/)
